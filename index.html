@@ -2881,18 +2881,17 @@ function mostrarToast(msg) {
 }
 
 // ========== INIT ==========
-) {
+// ========= INIT ==========
+function iniciarApp() {
   cargarEtiquetasEnForm('etiquetas-personaje', []);
   cargarEtiquetasEnForm('etiquetas-tl', []);
   cargarEtiquetasEnForm('etiquetas-cuad', []);
   renderArbol();
 }
+
 if (FIREBASE_ACTIVO) {
   initFirebase();
 } else {
-  cargarDeStorage();function iniciarApp(
+  cargarDeStorage();
   iniciarApp();
 }
-</script>
-</body>
-</html>
