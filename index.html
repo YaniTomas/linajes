@@ -255,6 +255,13 @@ textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
 /* ===== PANEL ÁRBOL ===== */
 .panel-arbol { flex: 1; min-height: 0; min-width: 0; overflow: auto; position: relative; background: radial-gradient(ellipse at center, rgba(42,31,26,0.2) 0%, transparent 70%); -webkit-overflow-scrolling: touch; }
 #arbol-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
+.vinculo-etiqueta text {
+  font-family: 'Crimson Text', serif;
+  font-size: 11px;
+  fill: #f0e6d3;
+  pointer-events: none;
+  user-select: none;
+}
 #personajes-container { position: absolute; top: 0; left: 0; z-index: 2; }
 #cuad-notas-container { position: absolute; top: 0; left: 0; z-index: 2; }
 
@@ -1537,6 +1544,14 @@ const VINCULO_LABELS = {
   abuelo:'Abuelo/a', nieto:'Nieto/a', tio:'Tío/a', sobrino:'Sobrino/a', primo:'Primo/a', bisabuelo:'Bisabuelo/a',
   tutor:'Tutor/a', mentor:'Mentor/a', aliado:'Aliado/a', rival:'Rival', amigos:'Amigos', otro:'Otro',
 };
+const VINCULO_COLORES = {
+  padre:'#3D4A6B', madre:'#5C3D6B', hijo:'#2A5C4A', hijastro:'#3A6B5A', 'hijo-adoptivo':'#4A6B3D',
+  hermano:'#8B6330', 'medio-hermano':'#6B4A2A', hermanastro:'#7A5225',
+  conyuge:'#7A2525', concubino:'#8B3030', amante:'#5C1B1B', prometido:'#9B4040',
+  'ex-pareja':'#6B3D3D', 'pareja-secreta':'#4A1A1A',
+  abuelo:'#4A4A6B', nieto:'#3D5C4A', tio:'#5C4A6B', sobrino:'#4A6B5C', primo:'#6B5C4A', bisabuelo:'#3D3D6B',
+  tutor:'#2A4A5C', mentor:'#4A5C6B', aliado:'#3D6B4A', rival:'#6B2A2A', amigos:'#5C6B4A', otro:'#5C4A3D',
+};
 const VINCULO_OPCIONES_HTML = `
   <option value="">— Tipo de vínculo —</option>
   <optgroup label="Vínculos directos">
@@ -1585,6 +1600,11 @@ function esc(s) {
 }
 function getVinculo(p) { return p.vinculo || p.parentesco || ''; }
 function labelVinculo(tipo) { return VINCULO_LABELS[tipo] || tipo || ''; }
+function colorVinculo(tipo) { return VINCULO_COLORES[tipo] || '#5C4A3D'; }
+function textoEtiquetaVinculo(vin) {
+  if (vin.tipo === 'otro' && vin.otroTexto) return vin.otroTexto;
+  return labelVinculo(vin.tipo);
+}
 function getVinculos(p) {
   if (Array.isArray(p.vinculos)) return p.vinculos;
   const tipo = getVinculo(p);
@@ -1906,36 +1926,59 @@ function renderArbol() {
 function dibujarLineas(svg,ps) {
   const mapa = {};
   ps.forEach(p => mapa[p.id]=p);
-  const parejasDib = new Set();
+  const lineasDib = new Set();
   ps.forEach(p => {
     getVinculos(p).forEach(vin => {
       const v = vin.tipo;
+      if (!v) return;
       const ids = vin.personajeIds || [];
-      if (PARENTESCOS_HIJO.includes(v) && ids.length) {
-        ids.forEach(pid => {
-          const prog = mapa[pid];
-          if (prog) dibujarLineaFiliacion(svg, prog.x+82, prog.y+82, p.x+82, p.y);
-        });
-      } else if (PARENTESCOS_PAREJA.includes(v) && ids.length) {
-        const sec = PARENTESCOS_SECRETO.includes(v);
-        ids.forEach(pid => {
-          const clave = [p.id,pid,v].sort().join('-');
-          if (!parejasDib.has(clave)) {
-            parejasDib.add(clave);
-            const par = mapa[pid];
-            if (par) dibujarLineaPareja(svg, p.x+82, p.y+40, par.x+82, par.y+40, sec);
-          }
-        });
-      } else if (ids.length) {
-        ids.forEach(pid => {
-          const otro = mapa[pid];
-          if (otro) dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y);
-        });
-      }
+      const etiqueta = textoEtiquetaVinculo(vin);
+      const color = colorVinculo(v);
+      ids.forEach(pid => {
+        const otro = mapa[pid];
+        if (!otro) return;
+        const clave = [Math.min(p.id,pid), Math.max(p.id,pid), v, etiqueta].join('-');
+        if (lineasDib.has(clave)) return;
+        lineasDib.add(clave);
+        if (PARENTESCOS_HIJO.includes(v)) {
+          dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y, etiqueta, color);
+        } else if (PARENTESCOS_PAREJA.includes(v)) {
+          const sec = PARENTESCOS_SECRETO.includes(v);
+          dibujarLineaPareja(svg, p.x+82, p.y+40, otro.x+82, otro.y+40, sec, etiqueta, color);
+        } else if (ids.length) {
+          dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y, etiqueta, color);
+        }
+      });
     });
   });
 }
-function dibujarLineaFiliacion(svg,x1,y1,x2,y2) {
+function dibujarEtiquetaVinculo(svg, x, y, texto, color) {
+  if (!texto) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  const g = document.createElementNS(NS, 'g');
+  g.setAttribute('class', 'vinculo-etiqueta');
+  const text = document.createElementNS(NS, 'text');
+  text.setAttribute('x', x);
+  text.setAttribute('y', y);
+  text.setAttribute('text-anchor', 'middle');
+  text.setAttribute('dominant-baseline', 'middle');
+  text.textContent = texto;
+  g.appendChild(text);
+  svg.appendChild(g);
+  const bbox = text.getBBox();
+  const padX = 6, padY = 3;
+  const rect = document.createElementNS(NS, 'rect');
+  rect.setAttribute('x', bbox.x - padX);
+  rect.setAttribute('y', bbox.y - padY);
+  rect.setAttribute('width', bbox.width + padX * 2);
+  rect.setAttribute('height', bbox.height + padY * 2);
+  rect.setAttribute('rx', '4');
+  rect.setAttribute('fill', color);
+  rect.setAttribute('stroke', 'rgba(240,230,211,0.28)');
+  rect.setAttribute('stroke-width', '0.8');
+  g.insertBefore(rect, text);
+}
+function dibujarLineaFiliacion(svg,x1,y1,x2,y2,etiqueta,colorEtiqueta) {
   const midY = y1+(y2-y1)*0.5;
   const path = document.createElementNS('http://www.w3.org/2000/svg','path');
   path.setAttribute('d',`M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`);
@@ -1945,8 +1988,9 @@ function dibujarLineaFiliacion(svg,x1,y1,x2,y2) {
   const d = document.createElementNS('http://www.w3.org/2000/svg','polygon');
   d.setAttribute('points',`${x2},${y2-8} ${x2+5},${y2-3} ${x2},${y2+2} ${x2-5},${y2-3}`);
   d.setAttribute('fill','rgba(201,169,110,0.5)'); svg.appendChild(d);
+  if (etiqueta) dibujarEtiquetaVinculo(svg, (x1+x2)/2, midY, etiqueta, colorEtiqueta);
 }
-function dibujarLineaPareja(svg,x1,y1,x2,y2,sec) {
+function dibujarLineaPareja(svg,x1,y1,x2,y2,sec,etiqueta,colorEtiqueta) {
   const cy = Math.min(y1,y2)-18;
   const path = document.createElementNS('http://www.w3.org/2000/svg','path');
   path.setAttribute('d',`M ${x1} ${y1} Q ${(x1+x2)/2} ${cy} ${x2} ${y2}`);
@@ -1960,6 +2004,11 @@ function dibujarLineaPareja(svg,x1,y1,x2,y2,sec) {
     c.setAttribute('fill', sec?'rgba(180,60,60,0.6)':'rgba(180,100,100,0.7)');
     svg.appendChild(c);
   });
+  if (etiqueta) {
+    const lx = (x1+x2)/2;
+    const ly = 0.25*y1 + 0.5*cy + 0.25*y2;
+    dibujarEtiquetaVinculo(svg, lx, ly - 5, etiqueta, colorEtiqueta);
+  }
 }
 
 // ========== TARJETA ==========
