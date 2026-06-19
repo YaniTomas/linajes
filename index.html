@@ -1421,11 +1421,13 @@ let firebaseUser = null;
 let db = null;
 let appIniciada = false;
 let authListenerRegistrado = false;
+let authListo = false;
+let ultimoUidProcesado = null;
 
 function mensajeErrorAuth(e) {
   const msgs = {
     'auth/unauthorized-domain': 'Dominio no autorizado. En Firebase → Authentication → Settings → Authorized domains, agregá: yanitomas.github.io',
-    'auth/popup-blocked': 'El navegador bloqueó la ventana emergente.',
+    'auth/popup-blocked': 'El navegador bloqueó la ventana emergente. Permití popups o probá otro navegador.',
     'auth/popup-closed-by-user': '',
     'auth/operation-not-allowed': 'Google no está activado. En Firebase → Authentication → Sign-in method → activá Google.',
     'auth/cancelled-popup-request': '',
@@ -1448,11 +1450,30 @@ function ocultarPantallaLogin(user) {
   document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
 }
 
-function actualizarUIAuth(user) {
-  if (user) ocultarPantallaLogin(user);
-  else {
+async function manejarSesion(user) {
+  firebaseUser = user;
+
+  if (!user) {
+    ultimoUidProcesado = null;
     appIniciada = false;
     mostrarPantallaLogin();
+    return;
+  }
+
+  if (user.uid === ultimoUidProcesado && appIniciada) return;
+
+  ocultarPantallaLogin(user);
+  ultimoUidProcesado = user.uid;
+
+  try {
+    await cargarDeNube();
+  } catch(e) {
+    mostrarToast(mensajeErrorFirestore(e, 'cargar'));
+  }
+
+  if (!appIniciada) {
+    iniciarApp();
+    appIniciada = true;
   }
 }
 
@@ -1472,23 +1493,9 @@ async function initFirebase() {
     await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
   } catch(e) {}
 
-  firebase.auth().onAuthStateChanged(async (user) => {
-    firebaseUser = user;
-    if (!user) {
-      actualizarUIAuth(null);
-      return;
-    }
-
-    actualizarUIAuth(user);
-    try {
-      await cargarDeNube();
-    } catch(e) {
-      mostrarToast(mensajeErrorFirestore(e, 'cargar'));
-    }
-    if (!appIniciada) {
-      iniciarApp();
-      appIniciada = true;
-    }
+  firebase.auth().onAuthStateChanged((user) => {
+    if (!authListo) return;
+    manejarSesion(user);
   });
 
   try {
@@ -1498,7 +1505,11 @@ async function initFirebase() {
     const msg = mensajeErrorAuth(e);
     if (msg) mostrarToast(msg);
   }
+
+  authListo = true;
+  await manejarSesion(firebase.auth().currentUser);
 }
+
 async function loginConGoogle() {
   if (!FIREBASE_ACTIVO) { mostrarToast('Firebase no está configurado todavía.'); return; }
   if (typeof firebase === 'undefined') {
@@ -1508,11 +1519,11 @@ async function loginConGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await firebase.auth().signInWithRedirect(provider);
+    await firebase.auth().signInWithPopup(provider);
   } catch(e) {
     if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
     try {
-      await firebase.auth().signInWithPopup(provider);
+      await firebase.auth().signInWithRedirect(provider);
     } catch(e2) {
       const msg = mensajeErrorAuth(e2);
       if (msg) mostrarToast(msg);
@@ -1521,6 +1532,7 @@ async function loginConGoogle() {
 }
 async function cerrarSesion() {
   if (firebaseUser) await firebase.auth().signOut();
+  ultimoUidProcesado = null;
   proyectos = {}; proyectoActual = null;
   actualizarDropdowns(); renderArbol();
   mostrarToast('Sesión cerrada.');
