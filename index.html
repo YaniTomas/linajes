@@ -820,6 +820,7 @@ input[type="date"] {
   border-color: var(--pergamino);
 }
 .app.bloqueada { filter: blur(4px); pointer-events: none; user-select: none; }
+body.esperando-auth header { pointer-events: none; user-select: none; filter: blur(2px); }
 
 .ornamento { text-align: center; color: rgba(201,169,110,0.3); font-size: 0.78rem; letter-spacing: 0.3em; margin: 2px 0; }
 #import-file { display: none; }
@@ -836,7 +837,7 @@ input[type="date"] {
 </head>
 <body>
 
-<div id="login-pantalla">
+<div id="login-pantalla" class="visible">
   <div class="login-box">
     <h2>✦ Linajes ✦</h2>
     <p>Iniciá sesión con Google para guardar tus proyectos en la nube y acceder desde cualquier dispositivo.</p>
@@ -862,7 +863,7 @@ input[type="date"] {
   </div>
 </header>
 
-<div class="app" id="app-main">
+<div class="app bloqueada" id="app-main">
 
   <!-- ===== TAB ÁRBOL ===== -->
   <div class="tab-panel active" id="tab-arbol">
@@ -1432,23 +1433,37 @@ function mensajeErrorAuth(e) {
   return msgs[e.code] || `Error de login: ${e.code || e.message}`;
 }
 
+function mostrarPantallaLogin() {
+  document.body.classList.add('esperando-auth');
+  document.getElementById('login-pantalla').classList.add('visible');
+  document.getElementById('app-main').classList.add('bloqueada');
+  document.getElementById('user-bar').classList.remove('visible');
+}
+
+function ocultarPantallaLogin(user) {
+  document.body.classList.remove('esperando-auth');
+  document.getElementById('login-pantalla').classList.remove('visible');
+  document.getElementById('app-main').classList.remove('bloqueada');
+  document.getElementById('user-bar').classList.add('visible');
+  document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
+}
+
 function actualizarUIAuth(user) {
-  if (user) {
-    document.getElementById('login-pantalla').classList.remove('visible');
-    document.getElementById('app-main').classList.remove('bloqueada');
-    document.getElementById('user-bar').classList.add('visible');
-    document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
-  } else {
+  if (user) ocultarPantallaLogin(user);
+  else {
     appIniciada = false;
-    document.getElementById('login-pantalla').classList.add('visible');
-    document.getElementById('app-main').classList.add('bloqueada');
-    document.getElementById('user-bar').classList.remove('visible');
+    mostrarPantallaLogin();
   }
 }
 
 async function initFirebase() {
-  if (!FIREBASE_ACTIVO || typeof firebase === 'undefined' || authListenerRegistrado) return;
+  if (!FIREBASE_ACTIVO || authListenerRegistrado) return;
+  if (typeof firebase === 'undefined') {
+    mostrarToast('No se pudo cargar Firebase. Recargá la página.');
+    return;
+  }
   authListenerRegistrado = true;
+  mostrarPantallaLogin();
 
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
@@ -1459,17 +1474,20 @@ async function initFirebase() {
 
   firebase.auth().onAuthStateChanged(async (user) => {
     firebaseUser = user;
-    actualizarUIAuth(user);
-    if (!user) return;
+    if (!user) {
+      actualizarUIAuth(null);
+      return;
+    }
 
+    actualizarUIAuth(user);
     try {
       await cargarDeNube();
-      if (!appIniciada) {
-        iniciarApp();
-        appIniciada = true;
-      }
     } catch(e) {
       mostrarToast(mensajeErrorFirestore(e, 'cargar'));
+    }
+    if (!appIniciada) {
+      iniciarApp();
+      appIniciada = true;
     }
   });
 
@@ -1483,14 +1501,18 @@ async function initFirebase() {
 }
 async function loginConGoogle() {
   if (!FIREBASE_ACTIVO) { mostrarToast('Firebase no está configurado todavía.'); return; }
+  if (typeof firebase === 'undefined') {
+    mostrarToast('Firebase no está listo. Recargá la página.');
+    return;
+  }
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await firebase.auth().signInWithPopup(provider);
+    await firebase.auth().signInWithRedirect(provider);
   } catch(e) {
     if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
     try {
-      await firebase.auth().signInWithRedirect(provider);
+      await firebase.auth().signInWithPopup(provider);
     } catch(e2) {
       const msg = mensajeErrorAuth(e2);
       if (msg) mostrarToast(msg);
@@ -2894,12 +2916,19 @@ function iniciarApp() {
   cargarEtiquetasEnForm('etiquetas-cuad', []);
   renderArbol();
 }
-if (FIREBASE_ACTIVO) {
-  initFirebase();
-} else {
-  cargarDeStorage();
-  iniciarApp();
+function boot() {
+  if (FIREBASE_ACTIVO) {
+    mostrarPantallaLogin();
+    initFirebase();
+  } else {
+    document.body.classList.remove('esperando-auth');
+    document.getElementById('login-pantalla').classList.remove('visible');
+    document.getElementById('app-main').classList.remove('bloqueada');
+    cargarDeStorage();
+    iniciarApp();
+  }
 }
+boot();
 </script>
 </body>
 </html>
