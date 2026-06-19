@@ -1430,7 +1430,7 @@ function mensajeErrorAuth(e) {
   };
   return msgs[e.code] || `Error de login: ${e.code || e.message}`;
 }
-
+console.log('VERSION NUEVA');
 async function initFirebase() {
   if (!FIREBASE_ACTIVO || typeof firebase === 'undefined') return;
   firebase.initializeApp(FIREBASE_CONFIG);
