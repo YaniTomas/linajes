@@ -1452,7 +1452,7 @@ async function initFirebase() {
       document.getElementById('user-bar').classList.add('visible');
       document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
       await cargarDeNube();
-      if (!appIniciada) { iniciarApp(); appIniciada = true; }
+      // if (!appIniciada) { iniciarApp(); appIniciada = true; }
     } else {
       appIniciada = false;
       document.getElementById('login-pantalla').classList.add('visible');
