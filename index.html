@@ -2019,8 +2019,6 @@ function crearTarjeta(p) {
   wrap.dataset.id = p.id;
   wrap.style.left = p.x+'px'; wrap.style.top = p.y+'px';
   const nc = nombrePersonaje(p);
-  const vincs = getVinculos(p);
-  const vTags = vincs.map(v => labelVinculo(v.tipo)).filter(Boolean).join(', ');
   const tagsHtml = htmlEtiquetas(p.etiquetas);
   wrap.innerHTML = `
     <div class="pergamino">
@@ -2028,7 +2026,6 @@ function crearTarjeta(p) {
       ${p.familia?`<div class="pergamino-familia">Casa ${esc(p.familia)}</div>`:''}
       <div class="pergamino-meta">
         ${p.raza?`<span class="pergamino-tag">${esc(p.raza)}</span>`:'<span></span>'}
-        ${vTags?`<span class="pergamino-tag">${esc(vTags)}</span>`:''}
         ${p.edad?`<span class="pergamino-tag">${esc(p.edad)}</span>`:''}
       </div>
       ${tagsHtml?`<div style="margin-top:4px;text-align:center;">${tagsHtml}</div>`:''}
