@@ -208,6 +208,20 @@ select option { background: var(--marron); color: var(--texto-claro); }
 .progenitor-item label span { font-size: 0.7rem; color: rgba(201,169,110,0.4); font-style: italic; margin-left: 4px; }
 .otro-nombre-container { display: none; margin-top: 4px; }
 .otro-nombre-container.visible { display: block; }
+.vinculo-fila {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; margin-top: 4px;
+  background: rgba(13,11,14,0.35); border: 1px solid rgba(201,169,110,0.18); border-radius: 4px;
+}
+.vinculo-fila-header { display: flex; gap: 6px; align-items: center; }
+.vinculo-fila-header select { flex: 1; }
+.btn-quitar-vinculo {
+  flex-shrink: 0; width: 28px; height: 28px; padding: 0;
+  font-family: 'IM Fell English', serif; font-size: 0.85rem;
+  border: 1px solid rgba(180,60,60,0.35); background: rgba(180,60,60,0.12);
+  color: rgba(220,140,140,0.85); cursor: pointer; border-radius: 3px; transition: all 0.2s;
+}
+.btn-quitar-vinculo:hover { background: rgba(180,60,60,0.25); border-color: rgba(180,60,60,0.6); }
 textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
 
 .btn-primary {
@@ -900,56 +914,8 @@ body.esperando-auth header { pointer-events: none; user-select: none; filter: bl
 
       <div>
         <div class="section-label">Vínculos</div>
-        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
-          <select id="vinculo" onchange="onVinculoChange()">
-            <option value="">— Tipo de vínculo —</option>
-            <optgroup label="Vínculos directos">
-              <option value="padre">Padre</option>
-              <option value="madre">Madre</option>
-              <option value="hijo">Hijo/a</option>
-              <option value="hijastro">Hijastro/a</option>
-              <option value="hijo-adoptivo">Hijo/a adoptivo/a</option>
-            </optgroup>
-            <optgroup label="Hermandad">
-              <option value="hermano">Hermano/a</option>
-              <option value="medio-hermano">Medio hermano/a</option>
-              <option value="hermanastro">Hermanastro/a</option>
-            </optgroup>
-            <optgroup label="Pareja">
-              <option value="conyuge">Cónyuge / consorte</option>
-              <option value="concubino">Concubino/a</option>
-              <option value="amante">Amante</option>
-              <option value="prometido">Prometido/a</option>
-              <option value="ex-pareja">Ex pareja</option>
-              <option value="pareja-secreta">Pareja secreta</option>
-            </optgroup>
-            <optgroup label="Extendido">
-              <option value="abuelo">Abuelo/a</option>
-              <option value="nieto">Nieto/a</option>
-              <option value="tio">Tío/a</option>
-              <option value="sobrino">Sobrino/a</option>
-              <option value="primo">Primo/a</option>
-              <option value="bisabuelo">Bisabuelo/a</option>
-            </optgroup>
-            <optgroup label="Especiales">
-              <option value="tutor">Tutor/a / guardián</option>
-              <option value="mentor">Mentor/a</option>
-              <option value="aliado">Aliado/a de sangre</option>
-              <option value="rival">Rival de linaje</option>
-              <option value="amigos">Amigos</option>
-              <option value="otro">Otro</option>
-            </optgroup>
-          </select>
-
-          <div class="progenitores-box" id="vinculos-box">
-            <div class="progenitores-label">Vincular con personaje existente</div>
-            <div class="progenitores-lista" id="vinculos-lista"></div>
-          </div>
-
-          <div class="otro-nombre-container" id="vinculo-otro-container">
-            <input type="text" id="vinculo-otro-texto" placeholder="Describí el vínculo...">
-          </div>
-        </div>
+        <div id="vinculos-container" style="display:flex;flex-direction:column;gap:4px;margin-top:7px;"></div>
+        <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaVinculo('vinculos-container')" style="margin-top:6px;">+ Agregar vínculo</button>
       </div>
 
       <div>
@@ -1242,32 +1208,9 @@ body.esperando-auth header { pointer-events: none; user-select: none; filter: bl
     <div class="modal-campo"><label>Fecha de muerte</label><input type="text" id="edit-fecha-muerte"></div>
     <div class="modal-campo"><label>Edad</label><input type="text" id="edit-edad"></div>
     <div class="modal-campo">
-      <label>Vínculo</label>
-      <select id="edit-vinculo" onchange="onEditVinculoChange()">
-        <option value="">— Sin definir —</option>
-        <option value="padre">Padre</option><option value="madre">Madre</option>
-        <option value="hijo">Hijo/a</option><option value="hijastro">Hijastro/a</option>
-        <option value="hijo-adoptivo">Hijo/a adoptivo/a</option>
-        <option value="hermano">Hermano/a</option><option value="medio-hermano">Medio hermano/a</option>
-        <option value="hermanastro">Hermanastro/a</option>
-        <option value="conyuge">Cónyuge</option><option value="concubino">Concubino/a</option>
-        <option value="amante">Amante</option><option value="prometido">Prometido/a</option>
-        <option value="ex-pareja">Ex pareja</option><option value="pareja-secreta">Pareja secreta</option>
-        <option value="abuelo">Abuelo/a</option><option value="nieto">Nieto/a</option>
-        <option value="tio">Tío/a</option><option value="sobrino">Sobrino/a</option>
-        <option value="primo">Primo/a</option><option value="bisabuelo">Bisabuelo/a</option>
-        <option value="tutor">Tutor/a</option><option value="mentor">Mentor/a</option>
-        <option value="aliado">Aliado/a</option><option value="rival">Rival</option>
-        <option value="amigos">Amigos</option><option value="otro">Otro</option>
-      </select>
-    </div>
-    <div class="modal-campo" id="edit-vinculos-box" style="display:none;">
-      <label>Vincular con</label>
-      <div class="progenitores-lista" id="edit-vinculos-lista"></div>
-    </div>
-    <div class="modal-campo" id="edit-vinculo-otro-box" style="display:none;">
-      <label>Descripción del vínculo</label>
-      <input type="text" id="edit-vinculo-otro-texto">
+      <label>Vínculos</label>
+      <div id="edit-vinculos-container" style="display:flex;flex-direction:column;gap:4px;"></div>
+      <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaVinculo('edit-vinculos-container')" style="margin-top:6px;">+ Agregar vínculo</button>
     </div>
     <div class="modal-campo">
       <label>Etiquetas</label>
@@ -1586,6 +1529,40 @@ async function guardarEnNube() {
 const PARENTESCOS_HIJO = ['hijo','hijastro','hijo-adoptivo','nieto'];
 const PARENTESCOS_PAREJA = ['conyuge','concubino','amante','prometido','ex-pareja','pareja-secreta'];
 const PARENTESCOS_SECRETO = ['amante','pareja-secreta','ex-pareja'];
+const VINCULO_LABELS = {
+  padre:'Padre', madre:'Madre', hijo:'Hijo/a', hijastro:'Hijastro/a', 'hijo-adoptivo':'Hijo/a adoptivo/a',
+  hermano:'Hermano/a', 'medio-hermano':'Medio hermano/a', hermanastro:'Hermanastro/a',
+  conyuge:'Cónyuge', concubino:'Concubino/a', amante:'Amante', prometido:'Prometido/a',
+  'ex-pareja':'Ex pareja', 'pareja-secreta':'Pareja secreta',
+  abuelo:'Abuelo/a', nieto:'Nieto/a', tio:'Tío/a', sobrino:'Sobrino/a', primo:'Primo/a', bisabuelo:'Bisabuelo/a',
+  tutor:'Tutor/a', mentor:'Mentor/a', aliado:'Aliado/a', rival:'Rival', amigos:'Amigos', otro:'Otro',
+};
+const VINCULO_OPCIONES_HTML = `
+  <option value="">— Tipo de vínculo —</option>
+  <optgroup label="Vínculos directos">
+    <option value="padre">Padre</option><option value="madre">Madre</option>
+    <option value="hijo">Hijo/a</option><option value="hijastro">Hijastro/a</option>
+    <option value="hijo-adoptivo">Hijo/a adoptivo/a</option>
+  </optgroup>
+  <optgroup label="Hermandad">
+    <option value="hermano">Hermano/a</option><option value="medio-hermano">Medio hermano/a</option>
+    <option value="hermanastro">Hermanastro/a</option>
+  </optgroup>
+  <optgroup label="Pareja">
+    <option value="conyuge">Cónyuge / consorte</option><option value="concubino">Concubino/a</option>
+    <option value="amante">Amante</option><option value="prometido">Prometido/a</option>
+    <option value="ex-pareja">Ex pareja</option><option value="pareja-secreta">Pareja secreta</option>
+  </optgroup>
+  <optgroup label="Extendido">
+    <option value="abuelo">Abuelo/a</option><option value="nieto">Nieto/a</option>
+    <option value="tio">Tío/a</option><option value="sobrino">Sobrino/a</option>
+    <option value="primo">Primo/a</option><option value="bisabuelo">Bisabuelo/a</option>
+  </optgroup>
+  <optgroup label="Especiales">
+    <option value="tutor">Tutor/a / guardián</option><option value="mentor">Mentor/a</option>
+    <option value="aliado">Aliado/a de sangre</option><option value="rival">Rival de linaje</option>
+    <option value="amigos">Amigos</option><option value="otro">Otro</option>
+  </optgroup>`;
 const TIPOS_NOTA = { ideas: 'Ideas', escenas: 'Escenas', ambientacion: 'Ambientación', escaleta: 'Escaleta' };
 const PALETA_COLORES = ['#5C1B1B','#7A2525','#8B6330','#2A5C4A','#3D4A6B','#5C3D6B','#6B4A2A','#4A6B3D','#4A4A6B','#6B3D3D'];
 
@@ -1599,6 +1576,7 @@ let notaSeleccionada = null;
 let tareaSeleccionada = null;
 let tlDragId = null;
 let kanbanDragId = null;
+let vinculoFilaCounter = 0;
 
 // ========== UTILIDADES ==========
 function esc(s) {
@@ -1606,6 +1584,15 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function getVinculo(p) { return p.vinculo || p.parentesco || ''; }
+function labelVinculo(tipo) { return VINCULO_LABELS[tipo] || tipo || ''; }
+function getVinculos(p) {
+  if (Array.isArray(p.vinculos)) return p.vinculos;
+  const tipo = getVinculo(p);
+  const ids = p.vinculadosIds || [];
+  if (!tipo && !ids.length) return [];
+  return [{ tipo, personajeIds: ids, otroTexto: p.vinculoOtroTexto || '' }];
+}
+function nombrePersonaje(p) { return [p.nombre, p.apellido].filter(Boolean).join(' '); }
 function htmlEtiquetas(etiquetas) {
   return (etiquetas||[]).map(e =>
     `<span class="etiqueta-chip" style="background:${esc(e.color)};color:#f0e6d3;">${esc(e.texto)}</span>`
@@ -1663,6 +1650,13 @@ function migrarProyecto(p) {
     if (!per.etiquetas) per.etiquetas = [];
     if (!per.vinculadosIds) per.vinculadosIds = [...new Set([...(per.progenitoresIds||[]), ...(per.parejaIds||[])])];
     if (!per.vinculo && per.parentesco) per.vinculo = per.parentesco;
+    if (!Array.isArray(per.vinculos)) {
+      const tipo = per.vinculo || per.parentesco || '';
+      const ids = per.vinculadosIds || [];
+      per.vinculos = (tipo || ids.length)
+        ? [{ tipo, personajeIds: ids, otroTexto: per.vinculoOtroTexto || '' }]
+        : [];
+    }
   });
   (p.timelines||[]).forEach(tl => {
     if (!tl.orientacion) tl.orientacion = 'horizontal';
@@ -1760,30 +1754,60 @@ function actualizarDropdowns() {
 }
 
 // ========== VÍNCULOS ==========
-function onVinculoChange() {
-  const val = document.getElementById('vinculo').value;
-  document.getElementById('vinculos-box').classList.toggle('visible', !!val);
-  document.getElementById('vinculo-otro-container').classList.toggle('visible', val === 'otro');
-  if (val) poblarListaVinculos('vinculos-lista', 'vinculo-personaje');
+function agregarFilaVinculo(containerId, data) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const filaId = ++vinculoFilaCounter;
+  const excluirId = containerId === 'edit-vinculos-container' ? personajeSeleccionado : null;
+  const fila = document.createElement('div');
+  fila.className = 'vinculo-fila';
+  fila.dataset.filaId = filaId;
+  fila.innerHTML = `
+    <div class="vinculo-fila-header">
+      <select class="vinculo-tipo-select" onchange="onFilaVinculoChange(this)">${VINCULO_OPCIONES_HTML}</select>
+      <button type="button" class="btn-quitar-vinculo" onclick="quitarFilaVinculo(this)" title="Quitar vínculo">✕</button>
+    </div>
+    <div class="progenitores-box vinculo-personajes-box">
+      <div class="progenitores-label">Vincular con personaje existente</div>
+      <div class="progenitores-lista vinculo-personajes-lista"></div>
+    </div>
+    <div class="otro-nombre-container vinculo-otro-box">
+      <input type="text" class="vinculo-otro-input" placeholder="Describí el vínculo...">
+    </div>`;
+  container.appendChild(fila);
+  if (data?.tipo) fila.querySelector('.vinculo-tipo-select').value = data.tipo;
+  if (data?.otroTexto) fila.querySelector('.vinculo-otro-input').value = data.otroTexto;
+  onFilaVinculoChange(fila.querySelector('.vinculo-tipo-select'));
+  poblarListaVinculosEnFila(fila, data?.personajeIds || [], excluirId);
 }
-function onEditVinculoChange() {
-  const val = document.getElementById('edit-vinculo').value;
-  document.getElementById('edit-vinculos-box').style.display = val ? 'block' : 'none';
-  document.getElementById('edit-vinculo-otro-box').style.display = val === 'otro' ? 'block' : 'none';
-  if (val) poblarListaVinculosEdit();
+function onFilaVinculoChange(selectEl) {
+  const fila = selectEl.closest('.vinculo-fila');
+  const val = selectEl.value;
+  const box = fila.querySelector('.vinculo-personajes-box');
+  const otro = fila.querySelector('.vinculo-otro-box');
+  box.classList.toggle('visible', !!val);
+  otro.classList.toggle('visible', val === 'otro');
+  if (val) {
+    const selected = leerVinculadosIdsDeFila(fila);
+    const excluirId = fila.closest('#edit-vinculos-container') ? personajeSeleccionado : null;
+    poblarListaVinculosEnFila(fila, selected, excluirId);
+  } else {
+    fila.querySelector('.vinculo-personajes-lista').innerHTML = '';
+  }
 }
-function poblarListaVinculos(listaId, inputName, selectedIds) {
-  const lista = document.getElementById(listaId);
+function poblarListaVinculosEnFila(fila, selectedIds, excluirId) {
+  const lista = fila.querySelector('.vinculo-personajes-lista');
   if (!lista) return;
   lista.innerHTML = '';
-  const ps = proyectos[proyectoActual]?.personajes || [];
+  const ps = (proyectos[proyectoActual]?.personajes || []).filter(p => p.id !== excluirId);
   if (!ps.length) {
     lista.innerHTML = '<div style="padding:5px 8px;font-style:italic;font-size:0.78rem;color:rgba(201,169,110,0.4);">No hay personajes aún.</div>';
     return;
   }
   const sel = new Set(selectedIds || []);
+  const inputName = `vinculo-personaje-${fila.dataset.filaId}`;
   ps.forEach(p => {
-    const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
+    const nc = nombrePersonaje(p);
     const item = document.createElement('div');
     item.className = 'progenitor-item';
     const checked = sel.has(p.id) ? 'checked' : '';
@@ -1791,14 +1815,26 @@ function poblarListaVinculos(listaId, inputName, selectedIds) {
     lista.appendChild(item);
   });
 }
-function poblarListaVinculosEdit() {
-  const p = (proyectos[proyectoActual]?.personajes||[]).find(x => x.id === personajeSeleccionado);
-  poblarListaVinculos('edit-vinculos-lista', 'edit-vinculo-personaje', p?.vinculadosIds || []);
-}
-function leerVinculadosIds(inputName) {
+function leerVinculadosIdsDeFila(fila) {
   const ids = [];
-  document.querySelectorAll(`input[name="${inputName}"]:checked`).forEach(cb => ids.push(parseInt(cb.value)));
+  fila.querySelectorAll('.vinculo-personajes-lista input[type="checkbox"]:checked').forEach(cb => ids.push(parseInt(cb.value)));
   return ids;
+}
+function leerVinculosDeForm(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  return [...container.querySelectorAll('.vinculo-fila')].map(fila => ({
+    tipo: fila.querySelector('.vinculo-tipo-select').value,
+    personajeIds: leerVinculadosIdsDeFila(fila),
+    otroTexto: fila.querySelector('.vinculo-otro-input')?.value.trim() || '',
+  })).filter(v => v.tipo);
+}
+function quitarFilaVinculo(btn) { btn.closest('.vinculo-fila')?.remove(); }
+function cargarVinculosEnForm(containerId, vinculos) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  (vinculos || []).forEach(v => agregarFilaVinculo(containerId, v));
 }
 
 // ========== GUARDAR PERSONAJE ==========
@@ -1806,8 +1842,7 @@ function guardarPersonaje() {
   if (!proyectoActual) { mostrarToast('Primero seleccioná o creá un proyecto.'); return; }
   const nombre = document.getElementById('nombre').value.trim();
   if (!nombre) { mostrarToast('El nombre es obligatorio.'); return; }
-  const vinculo = document.getElementById('vinculo').value;
-  const vinculadosIds = leerVinculadosIds('vinculo-personaje');
+  const vinculos = leerVinculosDeForm('vinculos-container');
   const p = {
     id: Date.now(),
     nombre, apellido: document.getElementById('apellido').value.trim(),
@@ -1817,9 +1852,7 @@ function guardarPersonaje() {
     fechaNacimiento: document.getElementById('fecha-nacimiento').value.trim(),
     fechaMuerte: document.getElementById('fecha-muerte').value.trim(),
     edad: document.getElementById('edad').value.trim(),
-    vinculo,
-    vinculadosIds,
-    vinculoOtroTexto: vinculo === 'otro' ? document.getElementById('vinculo-otro-texto').value.trim() : '',
+    vinculos,
     etiquetas: leerEtiquetas('etiquetas-personaje'),
     notas: document.getElementById('notas').value.trim(),
     x: calcularX(), y: calcularY(),
@@ -1839,13 +1872,10 @@ function calcularY() {
   return 50 + Math.floor(c/4)*190 + Math.random()*12;
 }
 function limpiarFormulario() {
-  ['nombre','apellido','familia','raza','genero','fecha-nacimiento','fecha-muerte','edad','notas','vinculo-otro-texto'].forEach(id => {
+  ['nombre','apellido','familia','raza','genero','fecha-nacimiento','fecha-muerte','edad','notas'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value='';
   });
-  document.getElementById('vinculo').value = '';
-  document.getElementById('vinculos-box').classList.remove('visible');
-  document.getElementById('vinculo-otro-container').classList.remove('visible');
-  document.getElementById('vinculos-lista').innerHTML = '';
+  cargarVinculosEnForm('vinculos-container', []);
   cargarEtiquetasEnForm('etiquetas-personaje', []);
 }
 
@@ -1878,29 +1908,31 @@ function dibujarLineas(svg,ps) {
   ps.forEach(p => mapa[p.id]=p);
   const parejasDib = new Set();
   ps.forEach(p => {
-    const v = getVinculo(p);
-    const ids = p.vinculadosIds || [];
-    if (PARENTESCOS_HIJO.includes(v) && ids.length) {
-      ids.forEach(pid => {
-        const prog = mapa[pid];
-        if (prog) dibujarLineaFiliacion(svg, prog.x+82, prog.y+82, p.x+82, p.y);
-      });
-    } else if (PARENTESCOS_PAREJA.includes(v) && ids.length) {
-      const sec = PARENTESCOS_SECRETO.includes(v);
-      ids.forEach(pid => {
-        const clave = [p.id,pid].sort().join('-');
-        if (!parejasDib.has(clave)) {
-          parejasDib.add(clave);
-          const par = mapa[pid];
-          if (par) dibujarLineaPareja(svg, p.x+82, p.y+40, par.x+82, par.y+40, sec);
-        }
-      });
-    } else if (ids.length) {
-      ids.forEach(pid => {
-        const otro = mapa[pid];
-        if (otro) dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y);
-      });
-    }
+    getVinculos(p).forEach(vin => {
+      const v = vin.tipo;
+      const ids = vin.personajeIds || [];
+      if (PARENTESCOS_HIJO.includes(v) && ids.length) {
+        ids.forEach(pid => {
+          const prog = mapa[pid];
+          if (prog) dibujarLineaFiliacion(svg, prog.x+82, prog.y+82, p.x+82, p.y);
+        });
+      } else if (PARENTESCOS_PAREJA.includes(v) && ids.length) {
+        const sec = PARENTESCOS_SECRETO.includes(v);
+        ids.forEach(pid => {
+          const clave = [p.id,pid,v].sort().join('-');
+          if (!parejasDib.has(clave)) {
+            parejasDib.add(clave);
+            const par = mapa[pid];
+            if (par) dibujarLineaPareja(svg, p.x+82, p.y+40, par.x+82, par.y+40, sec);
+          }
+        });
+      } else if (ids.length) {
+        ids.forEach(pid => {
+          const otro = mapa[pid];
+          if (otro) dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y);
+        });
+      }
+    });
   });
 }
 function dibujarLineaFiliacion(svg,x1,y1,x2,y2) {
@@ -1937,8 +1969,9 @@ function crearTarjeta(p) {
   wrap.className = 'tarjeta-personaje';
   wrap.dataset.id = p.id;
   wrap.style.left = p.x+'px'; wrap.style.top = p.y+'px';
-  const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
-  const v = getVinculo(p);
+  const nc = nombrePersonaje(p);
+  const vincs = getVinculos(p);
+  const vTags = vincs.map(v => labelVinculo(v.tipo)).filter(Boolean).join(', ');
   const tagsHtml = htmlEtiquetas(p.etiquetas);
   wrap.innerHTML = `
     <div class="pergamino">
@@ -1946,7 +1979,7 @@ function crearTarjeta(p) {
       ${p.familia?`<div class="pergamino-familia">Casa ${esc(p.familia)}</div>`:''}
       <div class="pergamino-meta">
         ${p.raza?`<span class="pergamino-tag">${esc(p.raza)}</span>`:'<span></span>'}
-        ${v?`<span class="pergamino-tag">${esc(v)}</span>`:''}
+        ${vTags?`<span class="pergamino-tag">${esc(vTags)}</span>`:''}
         ${p.edad?`<span class="pergamino-tag">${esc(p.edad)}</span>`:''}
       </div>
       ${tagsHtml?`<div style="margin-top:4px;text-align:center;">${tagsHtml}</div>`:''}
@@ -1976,13 +2009,15 @@ function abrirDetallePersonaje(id, directo) {
   personajeSeleccionado = id;
   if (directo) { abrirEdicion(); return; }
 
-  const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
-  const v = getVinculo(p);
+  const nc = nombrePersonaje(p);
   const mapaId = {}; ps.forEach(x => mapaId[x.id]=x);
-  const vincNombres = (p.vinculadosIds||[]).map(pid => {
-    const pr = mapaId[pid];
-    return pr ? [pr.nombre,pr.apellido].filter(Boolean).join(' ') : '—';
-  });
+  const vincsHtml = getVinculos(p).map(vin => {
+    const nombres = (vin.personajeIds||[]).map(pid => mapaId[pid] ? nombrePersonaje(mapaId[pid]) : '—').join(', ');
+    let linea = esc(labelVinculo(vin.tipo));
+    if (nombres) linea += ` → ${esc(nombres)}`;
+    if (vin.tipo === 'otro' && vin.otroTexto) linea += ` (${esc(vin.otroTexto)})`;
+    return linea;
+  }).join('<br>');
 
   document.getElementById('modal-detalle-contenido').innerHTML = `
     <div class="detalle-nombre">${esc(nc)}</div>
@@ -1992,9 +2027,7 @@ function abrirDetallePersonaje(id, directo) {
       <div class="detalle-campo"><div class="detalle-campo-label">Edad</div><div class="detalle-campo-valor">${esc(p.edad)||'—'}</div></div>
       <div class="detalle-campo"><div class="detalle-campo-label">Nacimiento</div><div class="detalle-campo-valor">${esc(p.fechaNacimiento)||'—'}</div></div>
       <div class="detalle-campo"><div class="detalle-campo-label">Muerte</div><div class="detalle-campo-valor">${esc(p.fechaMuerte)||'—'}</div></div>
-      <div class="detalle-campo"><div class="detalle-campo-label">Vínculo</div><div class="detalle-campo-valor">${esc(v)||'—'}</div></div>
-      ${v==='otro'&&p.vinculoOtroTexto?`<div class="detalle-campo" style="grid-column:1/-1;"><div class="detalle-campo-label">Descripción</div><div class="detalle-campo-valor">${esc(p.vinculoOtroTexto)}</div></div>`:''}
-      ${vincNombres.length?`<div class="detalle-campo" style="grid-column:1/-1;"><div class="detalle-campo-label">Vinculado con</div><div class="detalle-campo-valor">${esc(vincNombres.join(', '))}</div></div>`:''}
+      ${vincsHtml?`<div class="detalle-campo" style="grid-column:1/-1;"><div class="detalle-campo-label">Vínculos</div><div class="detalle-campo-valor">${vincsHtml}</div></div>`:''}
     </div>
     ${p.etiquetas?.length?`<div style="margin-bottom:8px;">${htmlEtiquetas(p.etiquetas)}</div>`:''}
     ${p.notas?`<div class="detalle-notas">${htmlTextoExpandible(p.notas,'det'+p.id)}</div>`:''}
@@ -2015,11 +2048,9 @@ function abrirEdicion() {
   document.getElementById('edit-fecha-nacimiento').value = p.fechaNacimiento||'';
   document.getElementById('edit-fecha-muerte').value = p.fechaMuerte||'';
   document.getElementById('edit-edad').value = p.edad||'';
-  document.getElementById('edit-vinculo').value = getVinculo(p);
-  document.getElementById('edit-vinculo-otro-texto').value = p.vinculoOtroTexto||'';
   document.getElementById('edit-notas').value = p.notas||'';
   cargarEtiquetasEnForm('etiquetas-edit-personaje', p.etiquetas);
-  onEditVinculoChange();
+  cargarVinculosEnForm('edit-vinculos-container', getVinculos(p));
   document.getElementById('modal-editar').classList.add('visible');
 }
 
@@ -2035,9 +2066,7 @@ function guardarEdicion() {
   ps[idx].fechaNacimiento = document.getElementById('edit-fecha-nacimiento').value.trim();
   ps[idx].fechaMuerte = document.getElementById('edit-fecha-muerte').value.trim();
   ps[idx].edad = document.getElementById('edit-edad').value.trim();
-  ps[idx].vinculo = document.getElementById('edit-vinculo').value;
-  ps[idx].vinculadosIds = leerVinculadosIds('edit-vinculo-personaje');
-  ps[idx].vinculoOtroTexto = ps[idx].vinculo === 'otro' ? document.getElementById('edit-vinculo-otro-texto').value.trim() : '';
+  ps[idx].vinculos = leerVinculosDeForm('edit-vinculos-container');
   ps[idx].etiquetas = leerEtiquetas('etiquetas-edit-personaje');
   ps[idx].notas = document.getElementById('edit-notas').value.trim();
   guardarEnStorage();
@@ -2065,6 +2094,10 @@ function ejecutarEliminar() {
     if (p.id === personajeSeleccionado) return false;
     // Limpiar referencias en otros personajes
     p.vinculadosIds = (p.vinculadosIds||[]).filter(id=>id!==personajeSeleccionado);
+    getVinculos(p).forEach(vin => {
+      vin.personajeIds = (vin.personajeIds||[]).filter(id => id !== personajeSeleccionado);
+    });
+    p.vinculos = getVinculos(p);
     return true;
   });
   guardarEnStorage();
