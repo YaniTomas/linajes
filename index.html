@@ -1419,6 +1419,7 @@ const FIREBASE_ACTIVO = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.starts
 let firebaseUser = null;
 let db = null;
 let appIniciada = false;
+let authListenerRegistrado = false;
 
 function mensajeErrorAuth(e) {
   const msgs = {
@@ -1430,16 +1431,47 @@ function mensajeErrorAuth(e) {
   };
   return msgs[e.code] || `Error de login: ${e.code || e.message}`;
 }
-console.log('VERSION NUEVA');
-async function initFirebase() {
-  if (!FIREBASE_ACTIVO || typeof firebase === 'undefined') return;
-  console.log('INIT FIREBASE');
 
-if (!firebase.apps.length) {
-  firebase.initializeApp(FIREBASE_CONFIG);
+function actualizarUIAuth(user) {
+  if (user) {
+    document.getElementById('login-pantalla').classList.remove('visible');
+    document.getElementById('app-main').classList.remove('bloqueada');
+    document.getElementById('user-bar').classList.add('visible');
+    document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
+  } else {
+    appIniciada = false;
+    document.getElementById('login-pantalla').classList.add('visible');
+    document.getElementById('app-main').classList.add('bloqueada');
+    document.getElementById('user-bar').classList.remove('visible');
+  }
 }
 
-db = firebase.firestore();
+async function initFirebase() {
+  if (!FIREBASE_ACTIVO || typeof firebase === 'undefined' || authListenerRegistrado) return;
+  authListenerRegistrado = true;
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+
+  try {
+    await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  } catch(e) {}
+
+  firebase.auth().onAuthStateChanged(async (user) => {
+    firebaseUser = user;
+    actualizarUIAuth(user);
+    if (!user) return;
+
+    try {
+      await cargarDeNube();
+      if (!appIniciada) {
+        iniciarApp();
+        appIniciada = true;
+      }
+    } catch(e) {
+      mostrarToast(mensajeErrorFirestore(e, 'cargar'));
+    }
+  });
 
   try {
     const result = await firebase.auth().getRedirectResult();
@@ -1448,44 +1480,17 @@ db = firebase.firestore();
     const msg = mensajeErrorAuth(e);
     if (msg) mostrarToast(msg);
   }
-
-  firebase.auth().onAuthStateChanged(async (user) => {
-
-  console.log('AUTH STATE:', user);
-
-  firebaseUser = user;
-    if (user) {
-      document.getElementById('login-pantalla').classList.remove('visible');
-      document.getElementById('app-main').classList.remove('bloqueada');
-      document.getElementById('user-bar').classList.add('visible');
-      document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
-      await cargarDeNube();
-
-if (!appIniciada) {
-  iniciarApp();
-  appIniciada = true;
-}
-      // if (!appIniciada) { iniciarApp(); appIniciada = true; }
-    } else {
-
-  console.log('USUARIO NULL');
-
-  appIniciada = false;
-  document.getElementById('login-pantalla').classList.add('visible');
-  document.getElementById('app-main').classList.add('bloqueada');
-  document.getElementById('user-bar').classList.remove('visible');
-}
-  });
 }
 async function loginConGoogle() {
   if (!FIREBASE_ACTIVO) { mostrarToast('Firebase no está configurado todavía.'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await firebase.auth().signInWithRedirect(provider);
+    await firebase.auth().signInWithPopup(provider);
   } catch(e) {
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
     try {
-      await firebase.auth().signInWithPopup(provider);
+      await firebase.auth().signInWithRedirect(provider);
     } catch(e2) {
       const msg = mensajeErrorAuth(e2);
       if (msg) mostrarToast(msg);
@@ -1493,17 +1498,9 @@ async function loginConGoogle() {
   }
 }
 async function cerrarSesion() {
-
-  console.log('SE EJECUTÓ cerrarSesion');
-
   if (firebaseUser) await firebase.auth().signOut();
-
-  proyectos = {};
-  proyectoActual = null;
-
-  actualizarDropdowns();
-  renderArbol();
-
+  proyectos = {}; proyectoActual = null;
+  actualizarDropdowns(); renderArbol();
   mostrarToast('Sesión cerrada.');
 }
 function sanitizarParaFirestore(obj) {
@@ -2891,17 +2888,18 @@ function mostrarToast(msg) {
 }
 
 // ========== INIT ==========
-// ========= INIT ==========
 function iniciarApp() {
   cargarEtiquetasEnForm('etiquetas-personaje', []);
   cargarEtiquetasEnForm('etiquetas-tl', []);
   cargarEtiquetasEnForm('etiquetas-cuad', []);
   renderArbol();
 }
-
 if (FIREBASE_ACTIVO) {
   initFirebase();
 } else {
   cargarDeStorage();
   iniciarApp();
 }
+</script>
+</body>
+</html>
