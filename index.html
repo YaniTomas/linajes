@@ -1,0 +1,2829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linajes — Árbol genealógico para escritores</title>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --negro: #0D0B0E;
+  --pergamino: #C9A96E;
+  --pergamino-claro: #E8DECB;
+  --marron: #2A1F1A;
+  --marron-medio: #3D2B22;
+  --bordeaux: #5C1B1B;
+  --bordeaux-claro: #7A2525;
+  --tinta: #1A1008;
+  --texto-claro: #F0E6D3;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Crimson Text', serif;
+  background-color: var(--negro);
+  color: var(--texto-claro);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(92,27,27,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(42,31,26,0.3) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== HEADER ===== */
+header {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 10px 20px 0;
+  background: linear-gradient(180deg, rgba(42,31,26,0.97) 0%, rgba(13,11,14,0.9) 100%);
+  border-bottom: 1px solid rgba(201,169,110,0.3);
+  flex-shrink: 0;
+}
+header h1 {
+  font-family: 'IM Fell English', serif;
+  font-size: 1.6rem;
+  color: var(--pergamino);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 30px rgba(201,169,110,0.4);
+}
+header p {
+  font-family: 'IM Fell English', serif;
+  font-style: italic;
+  font-size: 0.8rem;
+  color: rgba(201,169,110,0.55);
+  margin-top: 1px;
+  margin-bottom: 8px;
+}
+
+/* ===== TABS ===== */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-top: 6px;
+}
+.tab-btn {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  padding: 7px 28px;
+  border: 1px solid rgba(201,169,110,0.25);
+  border-bottom: none;
+  background: rgba(13,11,14,0.6);
+  color: rgba(201,169,110,0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px 4px 0 0;
+}
+.tab-btn:first-child { margin-right: -1px; }
+.tab-btn.active {
+  background: rgba(42,31,26,0.95);
+  color: var(--pergamino);
+  border-color: rgba(201,169,110,0.4);
+  z-index: 1;
+}
+.tab-btn:hover:not(.active) { color: rgba(201,169,110,0.7); }
+
+/* ===== TAB PANELS ===== */
+.tab-panel { display: none; flex: 1; overflow: hidden; position: relative; z-index: 1; min-height: 0; min-width: 0; }
+.tab-panel.active { display: flex; flex-direction: row; }
+
+/* Panel con scroll bidireccional */
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+.canvas-inner {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* ===== APP LAYOUT ===== */
+.app { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ===== PANEL IZQUIERDO ===== */
+.panel-form {
+  width: 25%;
+  min-width: 285px;
+  background: linear-gradient(180deg, rgba(42,31,26,0.97) 0%, rgba(26,16,8,0.97) 100%);
+  border-right: 1px solid rgba(201,169,110,0.25);
+  overflow-y: auto;
+  padding: 16px 14px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  flex-shrink: 0;
+}
+.panel-form::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--pergamino), transparent);
+}
+.section-label {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(201,169,110,0.5);
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(201,169,110,0.15);
+  margin-bottom: 3px;
+}
+select, input[type="text"], textarea {
+  width: 100%;
+  background: rgba(13,11,14,0.8);
+  border: 1px solid rgba(201,169,110,0.25);
+  color: var(--texto-claro);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.93rem;
+  padding: 7px 10px;
+  border-radius: 3px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9A96E' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+select:focus, input[type="text"]:focus, textarea:focus {
+  border-color: rgba(201,169,110,0.6);
+  box-shadow: 0 0 10px rgba(201,169,110,0.1);
+}
+input::placeholder, textarea::placeholder { color: rgba(201,169,110,0.3); font-style: italic; }
+select option { background: var(--marron); color: var(--texto-claro); }
+.btn-row { display: flex; gap: 7px; }
+.btn-sm {
+  flex: 1; padding: 6px 8px;
+  font-family: 'IM Fell English', serif; font-size: 0.76rem; letter-spacing: 0.05em;
+  border: 1px solid rgba(201,169,110,0.3); background: rgba(201,169,110,0.08);
+  color: var(--pergamino); cursor: pointer; border-radius: 3px; transition: all 0.2s; text-align: center;
+}
+.btn-sm:hover { background: rgba(201,169,110,0.15); border-color: rgba(201,169,110,0.6); }
+
+/* Progenitores / Pareja */
+.progenitores-box { display: none; flex-direction: column; gap: 5px; margin-top: 5px; }
+.progenitores-box.visible { display: flex; }
+.progenitores-label { font-size: 0.76rem; color: rgba(201,169,110,0.5); font-style: italic; }
+.progenitores-lista {
+  background: rgba(13,11,14,0.6); border: 1px solid rgba(201,169,110,0.2);
+  border-radius: 3px; max-height: 150px; overflow-y: auto; padding: 4px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.progenitor-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 7px; border-radius: 3px; cursor: pointer;
+  transition: background 0.15s; font-size: 0.86rem;
+}
+.progenitor-item:hover { background: rgba(201,169,110,0.1); }
+.progenitor-item input[type="checkbox"] {
+  width: 14px; height: 14px; accent-color: var(--bordeaux);
+  cursor: pointer; flex-shrink: 0;
+  appearance: auto; -webkit-appearance: auto;
+  padding: 0; border: none; background: none;
+}
+.progenitor-item label { cursor: pointer; color: var(--texto-claro); font-family: 'Crimson Text', serif; line-height: 1.2; }
+.progenitor-item label span { font-size: 0.7rem; color: rgba(201,169,110,0.4); font-style: italic; margin-left: 4px; }
+.otro-nombre-container { display: none; margin-top: 4px; }
+.otro-nombre-container.visible { display: block; }
+textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+.btn-primary {
+  width: 100%; padding: 9px 14px;
+  font-family: 'IM Fell English', serif; font-size: 0.88rem; letter-spacing: 0.06em;
+  border: none; cursor: pointer; border-radius: 3px; transition: all 0.25s;
+}
+.btn-guardar-personaje {
+  background: linear-gradient(135deg, var(--bordeaux) 0%, var(--bordeaux-claro) 100%);
+  color: var(--pergamino-claro); border: 1px solid rgba(201,169,110,0.3);
+}
+.btn-guardar-personaje:hover {
+  background: linear-gradient(135deg, var(--bordeaux-claro) 0%, #8B2E2E 100%);
+  box-shadow: 0 0 20px rgba(92,27,27,0.5); transform: translateY(-1px);
+}
+.btn-guardar-proyecto {
+  background: linear-gradient(135deg, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.08) 100%);
+  color: var(--pergamino); border: 1px solid rgba(201,169,110,0.4);
+}
+.btn-guardar-proyecto:hover {
+  background: linear-gradient(135deg, rgba(201,169,110,0.25) 0%, rgba(201,169,110,0.15) 100%);
+  box-shadow: 0 0 15px rgba(201,169,110,0.15); transform: translateY(-1px);
+}
+.btn-exportar {
+  background: transparent; color: rgba(201,169,110,0.6);
+  border: 1px dashed rgba(201,169,110,0.25); font-size: 0.8rem;
+}
+.btn-exportar:hover { color: var(--pergamino); border-color: rgba(201,169,110,0.5); background: rgba(201,169,110,0.05); }
+.btn-acciones { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+
+/* ===== PANEL ÁRBOL ===== */
+.panel-arbol { flex: 1; min-height: 0; min-width: 0; overflow: auto; position: relative; background: radial-gradient(ellipse at center, rgba(42,31,26,0.2) 0%, transparent 70%); -webkit-overflow-scrolling: touch; }
+#arbol-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 1; }
+#personajes-container { position: absolute; top: 0; left: 0; z-index: 2; }
+#cuad-notas-container { position: absolute; top: 0; left: 0; z-index: 2; }
+
+/* Tarjeta pergamino */
+.tarjeta-personaje {
+  position: absolute; width: 165px;
+  cursor: grab; user-select: none;
+  animation: aparecer 0.45s ease forwards;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+  z-index: 3;
+}
+.tarjeta-personaje:active { cursor: grabbing; }
+@keyframes aparecer {
+  from { opacity: 0; transform: scale(0.82) translateY(-10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pergamino {
+  background: linear-gradient(180deg, #D4B896 0%, #C9A96E 15%, #DFC08A 30%, #C4A060 50%, #D8B87A 70%, #C9A96E 85%, #B8925A 100%);
+  border-radius: 4px 4px 6px 6px;
+  padding: 10px 12px 14px;
+  position: relative;
+  border: 1px solid rgba(139,90,43,0.6);
+}
+.pergamino::before, .pergamino::after {
+  content: '';
+  display: block;
+  height: 8px;
+  background: linear-gradient(180deg, #8B6330 0%, #A8783A 40%, #8B6330 100%);
+  border-radius: 3px;
+  margin: -10px -12px 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.pergamino::after { margin: 8px -12px -14px; }
+.pergamino-nombre { font-family: 'IM Fell English', serif; font-size: 0.86rem; color: #2A1008; text-align: center; font-weight: bold; line-height: 1.2; }
+.pergamino-familia { font-family: 'IM Fell English', serif; font-style: italic; font-size: 0.68rem; color: #4A2810; text-align: center; margin-top: 2px; }
+.pergamino-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px; margin-top: 5px; font-size: 0.62rem; color: #5A3820; }
+.pergamino-tag { background: rgba(92,27,27,0.2); border-radius: 2px; padding: 1px 4px; border: 1px solid rgba(92,27,27,0.3); font-style: italic; }
+
+/* Botones de tarjeta */
+.tarjeta-btns {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.tarjeta-personaje:hover .tarjeta-btns { opacity: 1; }
+.tarjeta-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(139,90,43,0.5);
+  background: rgba(26,16,8,0.85);
+  color: var(--pergamino);
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  backdrop-filter: blur(4px);
+}
+.tarjeta-btn:hover { transform: scale(1.15); }
+.tarjeta-btn.edit:hover { background: rgba(201,169,110,0.25); border-color: var(--pergamino); }
+.tarjeta-btn.del:hover { background: rgba(92,27,27,0.5); border-color: var(--bordeaux-claro); }
+
+/* Estado vacío */
+.arbol-vacio { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; opacity: 0.35; pointer-events: none; }
+.arbol-vacio h2 { font-family: 'IM Fell English', serif; font-size: 1.3rem; color: var(--pergamino); margin-bottom: 8px; }
+.arbol-vacio p { font-style: italic; font-size: 0.88rem; color: rgba(201,169,110,0.7); max-width: 280px; }
+
+/* Leyenda */
+.leyenda {
+  position: absolute; bottom: 14px; right: 14px;
+  background: rgba(26,16,8,0.88); border: 1px solid rgba(201,169,110,0.2);
+  border-radius: 4px; padding: 9px 13px; z-index: 10;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.leyenda-titulo { font-family: 'IM Fell English', serif; font-size: 0.62rem; color: rgba(201,169,110,0.5); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 2px; }
+.leyenda-item { display: flex; align-items: center; gap: 8px; font-size: 0.73rem; color: rgba(201,169,110,0.7); }
+.leyenda-linea { width: 30px; height: 2px; flex-shrink: 0; }
+
+/* ===== LINEA TEMPORAL ===== */
+.panel-timeline {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.panel-timeline-form {
+  width: 25%;
+  min-width: 285px;
+  background: linear-gradient(180deg, rgba(42,31,26,0.97) 0%, rgba(26,16,8,0.97) 100%);
+  border-right: 1px solid rgba(201,169,110,0.25);
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  flex-shrink: 0;
+  position: relative;
+}
+.panel-timeline-form::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--pergamino), transparent);
+}
+.panel-timeline-main {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+  padding: 30px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+#tl-contenido { width: 100%; min-height: 200px; }
+
+/* Selector tipo timeline */
+.tipo-timeline-btns { display: flex; gap: 0; border: 1px solid rgba(201,169,110,0.25); border-radius: 4px; overflow: hidden; }
+.tipo-btn {
+  flex: 1; padding: 7px;
+  font-family: 'IM Fell English', serif; font-size: 0.78rem;
+  background: rgba(13,11,14,0.6); color: rgba(201,169,110,0.5);
+  border: none; cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.tipo-btn.active { background: rgba(92,27,27,0.6); color: var(--pergamino); }
+.tipo-btn:hover:not(.active) { color: rgba(201,169,110,0.8); }
+
+/* Timeline horizontal (trama) */
+.tl-horizontal {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: max-content;
+  width: max-content;
+  padding: 20px 40px;
+}
+.tl-h-linea-wrap {
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 80px 0;
+}
+.tl-h-rail {
+  position: absolute;
+  top: 50%;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(201,169,110,0.5), transparent);
+  transform: translateY(-50%);
+}
+.tl-h-eventos {
+  display: flex;
+  gap: 60px;
+  position: relative;
+  z-index: 2;
+  align-items: center;
+}
+.tl-h-evento {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.tl-h-evento:hover { transform: translateY(-4px); }
+.tl-h-evento.arriba .tl-h-card { order: -1; margin-bottom: 10px; }
+.tl-h-evento.arriba .tl-h-stem { order: 0; height: 30px; }
+.tl-h-evento.abajo .tl-h-stem { order: -1; height: 30px; }
+.tl-h-evento.abajo .tl-h-card { margin-top: 10px; }
+.tl-h-stem { width: 1px; background: rgba(201,169,110,0.4); }
+.tl-h-punto {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--pergamino);
+  border: 2px solid var(--marron);
+  box-shadow: 0 0 8px rgba(201,169,110,0.6);
+  flex-shrink: 0;
+}
+.tl-h-card {
+  width: 150px;
+  background: linear-gradient(135deg, rgba(42,31,26,0.95), rgba(26,16,8,0.95));
+  border: 1px solid rgba(201,169,110,0.3);
+  border-radius: 4px;
+  padding: 10px;
+  text-align: center;
+}
+.tl-h-fecha { font-size: 0.65rem; color: rgba(201,169,110,0.5); font-style: italic; margin-bottom: 3px; }
+.tl-h-titulo { font-family: 'IM Fell English', serif; font-size: 0.85rem; color: var(--pergamino); line-height: 1.2; }
+.tl-h-lugar { font-size: 0.65rem; color: rgba(201,169,110,0.45); margin-top: 3px; font-style: italic; }
+.tl-h-tags { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 4px; }
+.tl-h-tag { font-size: 0.58rem; padding: 1px 5px; background: rgba(92,27,27,0.3); border-radius: 2px; color: rgba(201,169,110,0.7); border: 1px solid rgba(92,27,27,0.4); }
+.tl-h-btns { display: flex; gap: 4px; justify-content: center; margin-top: 5px; opacity: 0; transition: opacity 0.2s; }
+.tl-h-evento:hover .tl-h-btns { opacity: 1; }
+.tl-btn-mini {
+  padding: 2px 7px; border-radius: 2px; font-size: 0.65rem; cursor: pointer;
+  font-family: 'IM Fell English', serif; border: 1px solid rgba(201,169,110,0.25);
+  background: rgba(13,11,14,0.8); color: rgba(201,169,110,0.7); transition: all 0.15s;
+}
+.tl-btn-mini:hover { color: var(--pergamino); border-color: rgba(201,169,110,0.5); }
+.tl-btn-mini.del:hover { background: rgba(92,27,27,0.4); border-color: var(--bordeaux); color: #E8DECB; }
+
+/* Timeline vertical (personaje) */
+.tl-vertical { padding: 20px 40px; }
+.tl-v-personaje-bloque { margin-bottom: 40px; }
+.tl-v-personaje-header {
+  font-family: 'IM Fell English', serif;
+  font-size: 1rem;
+  color: var(--pergamino);
+  padding: 6px 14px;
+  border-left: 3px solid var(--pergamino);
+  background: rgba(42,31,26,0.6);
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.tl-v-linea {
+  display: flex;
+  gap: 16px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(201,169,110,0.2);
+  margin-left: 6px;
+}
+.tl-v-rail-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: rgba(201,169,110,0.5);
+  border: 1px solid rgba(201,169,110,0.8);
+  flex-shrink: 0;
+  margin-top: 4px;
+  margin-left: -25px;
+  box-shadow: 0 0 6px rgba(201,169,110,0.4);
+}
+.tl-v-evento {
+  display: flex; gap: 14px;
+  margin-bottom: 18px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.tl-v-evento:hover { transform: translateX(4px); }
+.tl-v-card {
+  flex: 1;
+  background: linear-gradient(135deg, rgba(42,31,26,0.9), rgba(26,16,8,0.9));
+  border: 1px solid rgba(201,169,110,0.25);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+.tl-v-fecha { font-size: 0.65rem; color: rgba(201,169,110,0.5); font-style: italic; }
+.tl-v-titulo { font-family: 'IM Fell English', serif; font-size: 0.9rem; color: var(--pergamino); margin: 2px 0; }
+.tl-v-lugar { font-size: 0.68rem; color: rgba(201,169,110,0.4); font-style: italic; }
+.tl-v-desc { font-size: 0.78rem; color: rgba(240,230,211,0.7); margin-top: 4px; line-height: 1.4; }
+.tl-v-btns { display: flex; gap: 5px; margin-top: 6px; opacity: 0; transition: opacity 0.2s; }
+.tl-v-evento:hover .tl-v-btns { opacity: 1; }
+.tl-h-evento.dragging, .tl-v-evento.dragging { opacity: 0.45; transform: scale(0.97); }
+.tl-h-evento.drag-over, .tl-v-evento.drag-over { outline: 1px dashed rgba(201,169,110,0.6); outline-offset: 4px; }
+.tl-h-evento { cursor: grab; }
+.tl-h-evento:active { cursor: grabbing; }
+.tl-v-evento { cursor: grab; }
+.tl-v-evento:active { cursor: grabbing; }
+
+/* ===== CUADERNO / NOTAS ===== */
+.tarjeta-nota {
+  position: absolute; width: 175px;
+  cursor: grab; user-select: none;
+  animation: aparecer 0.45s ease forwards;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+  z-index: 3;
+}
+.tarjeta-nota:active { cursor: grabbing; }
+.nota-card {
+  background: linear-gradient(135deg, rgba(42,31,26,0.97), rgba(26,16,8,0.97));
+  border: 1px solid rgba(201,169,110,0.3);
+  border-radius: 4px;
+  padding: 10px 12px 12px;
+  position: relative;
+}
+.nota-card::before {
+  content: '';
+  display: block;
+  height: 3px;
+  margin: -10px -12px 8px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(90deg, transparent, var(--pergamino), transparent);
+  opacity: 0.5;
+}
+.nota-titulo {
+  font-family: 'IM Fell English', serif;
+  font-size: 0.88rem;
+  color: var(--pergamino);
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.nota-preview {
+  font-size: 0.75rem;
+  color: rgba(240,230,211,0.65);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.nota-tag-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-style: italic;
+  margin-bottom: 5px;
+  border: 1px solid;
+}
+.nota-tag-tag.ideas { background: rgba(92,27,27,0.25); color: rgba(201,169,110,0.85); border-color: rgba(92,27,27,0.4); }
+.nota-tag-tag.escenas { background: rgba(100,80,40,0.25); color: rgba(220,190,130,0.9); border-color: rgba(140,110,50,0.4); }
+.nota-tag-tag.ambientacion { background: rgba(40,70,90,0.3); color: rgba(160,200,220,0.85); border-color: rgba(60,100,120,0.4); }
+.nota-tag-tag.escaleta { background: rgba(70,50,90,0.3); color: rgba(200,180,220,0.85); border-color: rgba(90,60,110,0.4); }
+.tarjeta-escaleta.drag-over { outline: 1px dashed rgba(201,169,110,0.5); outline-offset: 4px; }
+.kanban-card.dragging { opacity: 0.5; }
+
+/* Vacio timeline */
+.tl-vacio {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; opacity: 0.35; text-align: center; gap: 10px;
+}
+.tl-vacio h2 { font-family: 'IM Fell English', serif; font-size: 1.2rem; color: var(--pergamino); }
+.tl-vacio p { font-style: italic; font-size: 0.85rem; color: rgba(201,169,110,0.6); max-width: 260px; }
+
+/* ===== MODALES ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.78); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.visible { display: flex; }
+.modal {
+  background: linear-gradient(180deg, var(--marron) 0%, var(--tinta) 100%);
+  border: 1px solid rgba(201,169,110,0.4);
+  border-radius: 6px; padding: 26px 28px;
+  min-width: 320px; max-width: 520px; width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.85);
+  max-height: 90vh; overflow-y: auto;
+}
+.modal h3 { font-family: 'IM Fell English', serif; color: var(--pergamino); font-size: 1.1rem; margin-bottom: 14px; }
+.modal-campo { margin-bottom: 10px; }
+.modal-campo label { display: block; font-size: 0.72rem; color: rgba(201,169,110,0.5); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: 'IM Fell English', serif; }
+.modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+.modal-btns button {
+  flex: 1; padding: 9px;
+  font-family: 'IM Fell English', serif; font-size: 0.86rem;
+  border-radius: 3px; cursor: pointer; transition: all 0.2s;
+}
+.btn-confirm { background: var(--bordeaux); color: var(--pergamino-claro); border: 1px solid rgba(201,169,110,0.3); }
+.btn-confirm:hover { background: var(--bordeaux-claro); }
+.btn-cancel { background: transparent; color: rgba(201,169,110,0.6); border: 1px solid rgba(201,169,110,0.2); }
+.btn-cancel:hover { background: rgba(201,169,110,0.08); color: var(--pergamino); }
+.btn-danger { background: rgba(92,27,27,0.7); color: var(--pergamino-claro); border: 1px solid rgba(92,27,27,0.8); }
+.btn-danger:hover { background: rgba(122,37,37,0.8); }
+
+/* Modal detalle personaje */
+.detalle-nombre { font-family: 'IM Fell English', serif; font-size: 1.4rem; color: var(--pergamino); text-align: center; margin-bottom: 4px; }
+.detalle-subtitulo { text-align: center; font-style: italic; font-size: 0.82rem; color: rgba(201,169,110,0.55); margin-bottom: 16px; }
+.detalle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 12px; }
+.detalle-campo { display: flex; flex-direction: column; gap: 2px; }
+.detalle-campo-label { font-size: 0.65rem; color: rgba(201,169,110,0.45); letter-spacing: 0.12em; text-transform: uppercase; font-family: 'IM Fell English', serif; }
+.detalle-campo-valor { font-size: 0.9rem; color: var(--texto-claro); }
+.detalle-notas { background: rgba(13,11,14,0.5); border: 1px solid rgba(201,169,110,0.15); border-radius: 3px; padding: 8px 10px; font-size: 0.85rem; color: rgba(240,230,211,0.75); line-height: 1.5; font-style: italic; margin-top: 8px; }
+.detalle-sep { height: 1px; background: rgba(201,169,110,0.12); margin: 12px 0; }
+
+/* Confirm eliminar */
+.confirm-texto { font-size: 0.95rem; color: rgba(240,230,211,0.8); line-height: 1.5; margin-bottom: 4px; }
+.confirm-nombre { color: var(--pergamino); font-family: 'IM Fell English', serif; }
+.confirm-aviso { font-size: 0.78rem; color: rgba(201,169,110,0.45); font-style: italic; margin-top: 6px; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; bottom: 32px;
+  transform: translateX(-50%) translateY(12px);
+  background: linear-gradient(135deg, #4a7c59 0%, #3d6b4a 100%);
+  border: 1px solid rgba(160,220,170,0.5); color: #e8f5e9;
+  padding: 14px 28px; border-radius: 6px;
+  font-family: 'IM Fell English', serif; font-size: 1rem;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.55);
+  z-index: 1000; opacity: 0; max-width: 90vw; text-align: center;
+  transition: all 0.3s ease; pointer-events: none;
+}
+.toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast .toast-comillas { font-style: normal; letter-spacing: 0.02em; }
+
+/* Etiquetas */
+.etiquetas-container { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.etiqueta-fila { display: flex; gap: 6px; align-items: center; }
+.etiqueta-fila input[type="text"] { flex: 1; }
+.color-grid { display: flex; flex-wrap: wrap; gap: 3px; flex-shrink: 0; }
+.color-swatch {
+  width: 18px; height: 18px; border-radius: 3px; cursor: pointer;
+  border: 2px solid transparent; transition: transform 0.15s;
+}
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.selected { border-color: var(--pergamino); box-shadow: 0 0 6px rgba(201,169,110,0.5); }
+.etiqueta-chip {
+  display: inline-block; font-size: 0.6rem; padding: 1px 6px;
+  border-radius: 2px; margin: 1px; border: 1px solid rgba(255,255,255,0.15);
+}
+.btn-agregar-etiqueta {
+  font-size: 0.72rem; color: rgba(201,169,110,0.6); background: none; border: none;
+  cursor: pointer; text-align: left; padding: 2px 0; font-family: 'Crimson Text', serif;
+  font-style: italic;
+}
+.btn-agregar-etiqueta:hover { color: var(--pergamino); }
+
+/* Truncado expandible */
+.texto-truncable { line-height: 1.4; }
+.texto-truncable.collapsed {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.expandir-link {
+  color: #6ba3d6; cursor: pointer; font-size: 0.72rem; font-style: italic;
+  margin-top: 3px; display: inline-block;
+}
+.expandir-link:hover { text-decoration: underline; }
+
+/* Timeline vertical rail */
+.tl-v-rail-layout { min-height: 300px; padding: 20px 0; width: 100%; display: flex; justify-content: center; }
+.tl-v-rail-wrap {
+  position: relative;
+  min-width: 520px;
+  width: max-content;
+  max-width: none;
+  padding: 10px 0;
+}
+.tl-v-rail-line {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, transparent, rgba(201,169,110,0.55) 8%, rgba(201,169,110,0.55) 92%, transparent);
+  z-index: 1;
+  pointer-events: none;
+}
+.tl-v-rail-eventos { display: flex; flex-direction: column; gap: 40px; position: relative; z-index: 2; }
+.tl-v-rail-evento {
+  display: grid;
+  grid-template-columns: 1fr 20px 1fr;
+  align-items: center;
+  gap: 16px;
+  cursor: grab;
+  min-height: 60px;
+}
+.tl-v-rail-evento:active { cursor: grabbing; }
+.tl-v-rail-evento.dragging { opacity: 0.45; }
+.tl-v-rail-evento.drag-over { outline: 1px dashed rgba(201,169,110,0.5); outline-offset: 6px; border-radius: 4px; }
+.tl-v-rail-slot { display: flex; justify-content: flex-end; min-width: 0; }
+.tl-v-rail-slot.der { justify-content: flex-start; }
+.tl-v-rail-slot.vacio { visibility: hidden; pointer-events: none; }
+.tl-v-rail-evento .tl-h-card { width: 190px; max-width: 100%; }
+.tl-v-rail-punto {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--pergamino);
+  border: 2px solid var(--marron);
+  box-shadow: 0 0 8px rgba(201,169,110,0.6);
+  justify-self: center;
+  z-index: 3;
+  flex-shrink: 0;
+}
+
+/* Cuaderno escaleta */
+.cuad-escaleta-lista { display: flex; flex-direction: column; gap: 14px; padding: 20px 24px; width: 100%; max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+.tarjeta-escaleta {
+  width: calc(100% - 48px); max-width: 860px; margin: 0 auto;
+  cursor: grab; user-select: none; position: relative;
+  animation: aparecer 0.45s ease forwards;
+}
+.tarjeta-escaleta:active { cursor: grabbing; }
+.escaleta-card {
+  background: linear-gradient(135deg, rgba(42,31,26,0.97), rgba(26,16,8,0.97));
+  border: 1px solid rgba(201,169,110,0.35); border-radius: 5px;
+  padding: 14px 18px;
+}
+.escaleta-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.escaleta-capitulo { font-size: 0.72rem; color: rgba(201,169,110,0.55); font-style: italic; }
+.escaleta-titulo { font-family: 'IM Fell English', serif; font-size: 1rem; color: var(--pergamino); }
+.ref-tag {
+  display: inline-block; font-size: 0.68rem; padding: 2px 8px; border-radius: 3px;
+  background: rgba(92,27,27,0.3); border: 1px solid rgba(201,169,110,0.25);
+  color: rgba(201,169,110,0.85); cursor: pointer; margin: 2px;
+}
+.ref-tag:hover { background: rgba(92,27,27,0.45); }
+.ref-tag.expanded + .ref-detalle { display: block; }
+.ref-detalle {
+  display: none; font-size: 0.78rem; color: rgba(240,230,211,0.7);
+  padding: 6px 10px; margin: 4px 0 8px; background: rgba(13,11,14,0.5);
+  border-radius: 3px; border-left: 2px solid rgba(201,169,110,0.3);
+}
+.cuad-escaleta-campos { display: none; flex-direction: column; gap: 7px; }
+.cuad-escaleta-campos.visible { display: flex; }
+
+/* Kanban Progreso */
+.panel-kanban { flex: 1; min-height: 0; min-width: 0; display: flex; gap: 14px; padding: 16px; overflow: auto; -webkit-overflow-scrolling: touch; }
+.kanban-col {
+  flex: 1; min-width: 200px; background: rgba(26,16,8,0.5);
+  border: 1px solid rgba(201,169,110,0.2); border-radius: 5px;
+  display: flex; flex-direction: column; max-height: 100%;
+}
+.kanban-col-header {
+  font-family: 'IM Fell English', serif; font-size: 0.82rem;
+  color: var(--pergamino); text-align: center; padding: 10px;
+  border-bottom: 1px solid rgba(201,169,110,0.15); flex-shrink: 0;
+}
+.kanban-col-body {
+  flex: 1; overflow-y: auto; padding: 8px; display: flex;
+  flex-direction: column; gap: 8px; min-height: 120px;
+}
+.kanban-col-body.drag-over { background: rgba(201,169,110,0.06); }
+.kanban-card {
+  background: linear-gradient(135deg, rgba(42,31,26,0.95), rgba(26,16,8,0.95));
+  border: 1px solid rgba(201,169,110,0.3); border-radius: 4px;
+  padding: 10px 12px; cursor: grab; transition: border-color 0.2s;
+}
+.kanban-card:active { cursor: grabbing; }
+.kanban-card.atrasado { border-color: rgba(200,60,60,0.7); background: linear-gradient(135deg, rgba(60,20,20,0.6), rgba(40,15,15,0.6)); }
+.kanban-card-titulo { font-family: 'IM Fell English', serif; font-size: 0.88rem; color: var(--pergamino); margin-bottom: 4px; }
+.kanban-card-fecha { font-size: 0.65rem; color: rgba(201,169,110,0.5); font-style: italic; }
+.kanban-tag-atrasado {
+  display: inline-block; font-size: 0.58rem; padding: 1px 6px;
+  background: rgba(180,40,40,0.5); color: #ffcdd2; border-radius: 2px; margin-top: 4px;
+}
+.kanban-card-btns { display: flex; gap: 4px; margin-top: 6px; opacity: 0; transition: opacity 0.2s; }
+.kanban-card:hover .kanban-card-btns { opacity: 1; }
+input[type="date"] {
+  width: 100%; background: rgba(13,11,14,0.8);
+  border: 1px solid rgba(201,169,110,0.25); color: var(--texto-claro);
+  font-family: 'Crimson Text', serif; font-size: 0.93rem;
+  padding: 7px 10px; border-radius: 3px; outline: none;
+  color-scheme: dark;
+}
+.tutorial-paso { margin-bottom: 14px; padding-left: 8px; border-left: 2px solid rgba(201,169,110,0.25); }
+.tutorial-paso strong { color: var(--pergamino); font-family: 'IM Fell English', serif; }
+
+/* Login Firebase */
+#login-pantalla {
+  position: fixed; inset: 0; z-index: 5000;
+  background: linear-gradient(180deg, rgba(13,11,14,0.98), rgba(42,31,26,0.98));
+  display: none; align-items: center; justify-content: center; flex-direction: column; gap: 18px;
+}
+#login-pantalla.visible { display: flex; }
+.login-box {
+  background: linear-gradient(180deg, var(--marron), var(--tinta));
+  border: 1px solid rgba(201,169,110,0.4); border-radius: 8px;
+  padding: 36px 40px; text-align: center; max-width: 400px; width: 90%;
+}
+.login-box h2 { font-family: 'IM Fell English', serif; color: var(--pergamino); font-size: 1.5rem; margin-bottom: 8px; }
+.login-box p { color: rgba(201,169,110,0.55); font-style: italic; font-size: 0.88rem; margin-bottom: 22px; line-height: 1.5; }
+.btn-google {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 22px; border-radius: 4px; cursor: pointer;
+  background: #fff; color: #333; border: none;
+  font-family: 'Crimson Text', serif; font-size: 0.95rem;
+  transition: box-shadow 0.2s;
+}
+.btn-google:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+.user-bar {
+  display: none; justify-content: center; align-items: center; gap: 12px;
+  font-size: 0.75rem; color: rgba(201,169,110,0.55); margin-bottom: 6px;
+}
+.user-bar.visible { display: flex; }
+.btn-logout {
+  background: none; border: 1px solid rgba(201,169,110,0.25); color: rgba(201,169,110,0.6);
+  padding: 2px 10px; border-radius: 3px; cursor: pointer; font-size: 0.72rem;
+  font-family: 'IM Fell English', serif;
+}
+.btn-logout:hover { color: var(--pergamino); border-color: rgba(201,169,110,0.5); }
+.app.bloqueada { filter: blur(4px); pointer-events: none; user-select: none; }
+
+.ornamento { text-align: center; color: rgba(201,169,110,0.3); font-size: 0.78rem; letter-spacing: 0.3em; margin: 2px 0; }
+#import-file { display: none; }
+
+/* Scrollbars */
+.panel-form::-webkit-scrollbar, .panel-timeline-form::-webkit-scrollbar { width: 4px; }
+.panel-form::-webkit-scrollbar-thumb, .panel-timeline-form::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.3); border-radius: 2px; }
+.panel-arbol::-webkit-scrollbar, .panel-timeline-main::-webkit-scrollbar, .panel-kanban::-webkit-scrollbar, .panel-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.panel-arbol::-webkit-scrollbar-thumb, .panel-timeline-main::-webkit-scrollbar-thumb, .panel-kanban::-webkit-scrollbar-thumb, .panel-scroll::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.25); border-radius: 4px; }
+.panel-arbol::-webkit-scrollbar-corner, .panel-timeline-main::-webkit-scrollbar-corner, .panel-kanban::-webkit-scrollbar-corner { background: rgba(13,11,14,0.5); }
+.progenitores-lista::-webkit-scrollbar { width: 3px; }
+.progenitores-lista::-webkit-scrollbar-thumb { background: rgba(201,169,110,0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="login-pantalla">
+  <div class="login-box">
+    <h2>✦ Linajes ✦</h2>
+    <p>Iniciá sesión con Google para guardar tus proyectos en la nube y acceder desde cualquier dispositivo.</p>
+    <button class="btn-google" onclick="loginConGoogle()">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.56 2.95-2.24 5.45-4.78 7.13l7.73 6.01C43.27 37.38 46.98 31.55 46.98 24.55z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a23.93 23.93 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6.01c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Iniciar sesión con Google
+    </button>
+  </div>
+</div>
+
+<header>
+  <div class="user-bar" id="user-bar">
+    <span id="user-email"></span>
+    <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+  <h1>✦ Linajes ✦</h1>
+  <p>El peso de la sangre y los secretos que hereda</p>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="cambiarTab('arbol')">✦ Árbol genealógico</button>
+    <button class="tab-btn" onclick="cambiarTab('timeline')">◈ Línea temporal</button>
+    <button class="tab-btn" onclick="cambiarTab('cuaderno')">✎ Cuaderno</button>
+    <button class="tab-btn" onclick="cambiarTab('progreso')">▣ Progreso</button>
+  </div>
+</header>
+
+<div class="app" id="app-main">
+
+  <!-- ===== TAB ÁRBOL ===== -->
+  <div class="tab-panel active" id="tab-arbol">
+    <aside class="panel-form">
+      <div>
+        <div class="section-label">Proyecto</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <select id="select-proyecto" onchange="cambiarProyecto()">
+            <option value="">— Seleccionar proyecto —</option>
+          </select>
+          <div class="btn-row">
+            <button class="btn-sm" onclick="mostrarModalNuevoProyecto()">✦ Crear</button>
+            <button class="btn-sm" onclick="document.getElementById('import-file').click()">↑ Importar</button>
+            <input type="file" id="import-file" accept=".json" onchange="importarProyecto(event)">
+          </div>
+        </div>
+      </div>
+
+      <div class="ornamento">— ✦ —</div>
+
+      <div>
+        <div class="section-label">Personaje</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
+          <input type="text" id="nombre" placeholder="Nombre...">
+          <input type="text" id="apellido" placeholder="Apellido...">
+          <input type="text" id="familia" placeholder="Casa / Familia / Clan...">
+          <input type="text" id="raza" placeholder="Raza / Especie / Linaje...">
+          <input type="text" id="genero" placeholder="Género (libre)...">
+          <input type="text" id="fecha-nacimiento" placeholder="Fecha de nacimiento...">
+          <input type="text" id="fecha-muerte" placeholder="Fecha de muerte...">
+          <input type="text" id="edad" placeholder="Edad...">
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Vínculos</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
+          <select id="vinculo" onchange="onVinculoChange()">
+            <option value="">— Tipo de vínculo —</option>
+            <optgroup label="Vínculos directos">
+              <option value="padre">Padre</option>
+              <option value="madre">Madre</option>
+              <option value="hijo">Hijo/a</option>
+              <option value="hijastro">Hijastro/a</option>
+              <option value="hijo-adoptivo">Hijo/a adoptivo/a</option>
+            </optgroup>
+            <optgroup label="Hermandad">
+              <option value="hermano">Hermano/a</option>
+              <option value="medio-hermano">Medio hermano/a</option>
+              <option value="hermanastro">Hermanastro/a</option>
+            </optgroup>
+            <optgroup label="Pareja">
+              <option value="conyuge">Cónyuge / consorte</option>
+              <option value="concubino">Concubino/a</option>
+              <option value="amante">Amante</option>
+              <option value="prometido">Prometido/a</option>
+              <option value="ex-pareja">Ex pareja</option>
+              <option value="pareja-secreta">Pareja secreta</option>
+            </optgroup>
+            <optgroup label="Extendido">
+              <option value="abuelo">Abuelo/a</option>
+              <option value="nieto">Nieto/a</option>
+              <option value="tio">Tío/a</option>
+              <option value="sobrino">Sobrino/a</option>
+              <option value="primo">Primo/a</option>
+              <option value="bisabuelo">Bisabuelo/a</option>
+            </optgroup>
+            <optgroup label="Especiales">
+              <option value="tutor">Tutor/a / guardián</option>
+              <option value="mentor">Mentor/a</option>
+              <option value="aliado">Aliado/a de sangre</option>
+              <option value="rival">Rival de linaje</option>
+              <option value="amigos">Amigos</option>
+              <option value="otro">Otro</option>
+            </optgroup>
+          </select>
+
+          <div class="progenitores-box" id="vinculos-box">
+            <div class="progenitores-label">Vincular con personaje existente</div>
+            <div class="progenitores-lista" id="vinculos-lista"></div>
+          </div>
+
+          <div class="otro-nombre-container" id="vinculo-otro-container">
+            <input type="text" id="vinculo-otro-texto" placeholder="Describí el vínculo...">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Etiquetas</div>
+        <div id="etiquetas-personaje" class="etiquetas-container"></div>
+        <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-personaje')">+ Agregar otra etiqueta</button>
+      </div>
+
+      <div>
+        <div class="section-label">Notas</div>
+        <textarea id="notas" placeholder="Descripción, secretos, historia personal..." style="margin-top:7px;"></textarea>
+      </div>
+
+      <div class="btn-acciones">
+        <button class="btn-primary btn-guardar-personaje" onclick="guardarPersonaje()">✦ Guardar personaje</button>
+        <button class="btn-primary btn-guardar-proyecto" onclick="guardarProyecto()">↓ Guardar proyecto</button>
+        <button class="btn-primary btn-exportar" onclick="exportarJSON()">⇣ Exportar como JSON</button>
+      </div>
+    </aside>
+
+    <main class="panel-arbol panel-scroll" id="panel-arbol">
+      <div class="canvas-inner" id="arbol-canvas">
+        <svg id="arbol-svg" width="100%" height="100%"></svg>
+        <div id="personajes-container"></div>
+      </div>
+      <div class="arbol-vacio" id="arbol-vacio">
+        <svg width="70" height="70" viewBox="0 0 80 80" fill="none" style="opacity:0.4;margin-bottom:12px;">
+          <path d="M40 70 L40 30" stroke="#C9A96E" stroke-width="2"/>
+          <path d="M40 50 Q25 45 20 30" stroke="#C9A96E" stroke-width="1.5" fill="none"/>
+          <path d="M40 45 Q55 40 58 26" stroke="#C9A96E" stroke-width="1.5" fill="none"/>
+          <circle cx="40" cy="72" r="3" fill="#C9A96E" opacity="0.6"/>
+          <circle cx="20" cy="28" r="4" fill="#C9A96E" opacity="0.4"/>
+          <circle cx="58" cy="24" r="4" fill="#C9A96E" opacity="0.4"/>
+        </svg>
+        <h2>El linaje espera ser escrito</h2>
+        <p>Creá un proyecto y agregá tu primer personaje.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== TAB TIMELINE ===== -->
+  <div class="tab-panel" id="tab-timeline">
+    <aside class="panel-timeline-form">
+      <div>
+        <div class="section-label">Proyecto</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <select id="tl-select-proyecto" onchange="tlCambiarProyecto()">
+            <option value="">— Seleccionar proyecto —</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Línea temporal</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <select id="tl-select-linea" onchange="tlCambiarLinea()">
+            <option value="">— Seleccionar línea —</option>
+          </select>
+          <div class="btn-row">
+            <button class="btn-sm" onclick="mostrarModalNuevaLinea()">✦ Nueva</button>
+            <button class="btn-sm" onclick="tlEliminarLinea()">✕ Eliminar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ornamento">— ✦ —</div>
+
+      <div>
+        <div class="section-label">Nuevo evento</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
+          <input type="text" id="tl-titulo" placeholder="Título del evento...">
+          <input type="text" id="tl-fecha" placeholder="Fecha / año ficticio...">
+          <input type="text" id="tl-lugar" placeholder="Lugar...">
+          <div class="progenitores-label" style="margin-top:2px;">Personajes involucrados</div>
+          <div class="progenitores-lista" id="tl-personajes-lista" style="max-height:120px;"></div>
+          <textarea id="tl-desc" placeholder="Descripción del evento..." style="min-height:65px;"></textarea>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Etiquetas</div>
+        <div id="etiquetas-tl" class="etiquetas-container"></div>
+        <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-tl')">+ Agregar otra etiqueta</button>
+      </div>
+
+      <div class="btn-acciones">
+        <button class="btn-primary btn-guardar-personaje" onclick="tlGuardarEvento()">✦ Agregar evento</button>
+        <button class="btn-primary btn-guardar-proyecto" onclick="guardarProyecto()">↓ Guardar proyecto</button>
+        <button class="btn-primary btn-exportar" onclick="exportarJSON()">⇣ Exportar como JSON</button>
+      </div>
+    </aside>
+
+    <main class="panel-timeline-main" id="panel-timeline-main">
+      <div id="tl-contenido">
+        <div class="tl-vacio">
+          <h2>Ningún evento registrado</h2>
+          <p>Seleccioná un proyecto y una línea temporal para comenzar.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== TAB CUADERNO ===== -->
+  <div class="tab-panel" id="tab-cuaderno">
+    <aside class="panel-form">
+      <div>
+        <div class="section-label">Proyecto</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <select id="cuad-select-proyecto" onchange="cuadCambiarProyecto()">
+            <option value="">— Seleccionar proyecto —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ornamento">— ✦ —</div>
+
+      <div>
+        <div class="section-label">Nueva nota</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
+          <select id="cuad-tipo" onchange="onCuadTipoChange()">
+            <option value="">— Tipo —</option>
+            <option value="ideas">Ideas</option>
+            <option value="escenas">Escenas</option>
+            <option value="ambientacion">Ambientación</option>
+            <option value="escaleta">Escaleta</option>
+          </select>
+          <input type="text" id="cuad-titulo" placeholder="Título de la nota...">
+          <div id="cuad-escaleta-campos" class="cuad-escaleta-campos">
+            <input type="text" id="cuad-capitulo" placeholder="Capítulo...">
+            <div class="progenitores-label">Agregar desde</div>
+            <select id="cuad-ref-tipo" onchange="onCuadRefTipoChange()">
+              <option value="">— Elegir fuente —</option>
+              <option value="personajes">Personajes</option>
+              <option value="timeline">Línea temporal</option>
+            </select>
+            <div class="progenitores-lista" id="cuad-ref-lista" style="max-height:130px;"></div>
+          </div>
+          <textarea id="cuad-contenido" placeholder="Escribí tu nota aquí..." style="min-height:90px;"></textarea>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Etiquetas</div>
+        <div id="etiquetas-cuad" class="etiquetas-container"></div>
+        <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-cuad')">+ Agregar otra etiqueta</button>
+      </div>
+
+      <div class="btn-acciones">
+        <button class="btn-primary btn-guardar-personaje" onclick="cuadGuardarNota()">✦ Guardar nota</button>
+        <button class="btn-primary btn-guardar-proyecto" onclick="guardarProyecto()">↓ Guardar proyecto</button>
+        <button class="btn-primary btn-exportar" onclick="exportarJSON()">⇣ Exportar como JSON</button>
+      </div>
+    </aside>
+
+    <main class="panel-arbol panel-scroll" id="panel-cuaderno">
+      <div id="cuad-escaleta-container" class="cuad-escaleta-lista" style="display:none;"></div>
+      <div class="canvas-inner" id="cuad-canvas">
+        <div id="cuad-notas-container"></div>
+      </div>
+      <div class="arbol-vacio" id="cuad-vacio">
+        <h2>El cuaderno está en blanco</h2>
+        <p>Seleccioná un proyecto y agregá tu primera nota.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== TAB PROGRESO ===== -->
+  <div class="tab-panel" id="tab-progreso">
+    <aside class="panel-form">
+      <div>
+        <div class="section-label">Proyecto</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:6px;">
+          <select id="prog-select-proyecto" onchange="progCambiarProyecto()">
+            <option value="">— Seleccionar proyecto —</option>
+          </select>
+        </div>
+      </div>
+      <div class="ornamento">— ✦ —</div>
+      <div>
+        <div class="section-label">Nueva tarea</div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:7px;">
+          <input type="text" id="prog-titulo" placeholder="Título de la tarea...">
+          <textarea id="prog-desc" placeholder="Descripción..." style="min-height:70px;"></textarea>
+          <div class="modal-campo" style="margin:0;">
+            <label style="font-size:0.72rem;color:rgba(201,169,110,0.5);letter-spacing:0.1em;text-transform:uppercase;font-family:'IM Fell English',serif;margin-bottom:4px;display:block;">Fecha límite</label>
+            <input type="date" id="prog-fecha">
+          </div>
+        </div>
+      </div>
+      <div class="btn-acciones">
+        <button class="btn-primary btn-guardar-personaje" onclick="progCrearTarea()">✦ Crear tarea</button>
+        <button class="btn-primary btn-guardar-proyecto" onclick="guardarProyecto()">↓ Guardar proyecto</button>
+      </div>
+    </aside>
+    <main class="panel-kanban" id="panel-kanban">
+      <div class="kanban-col" data-estado="todo" ondragover="kanbanDragOver(event)" ondrop="kanbanDrop(event,'todo')" ondragleave="kanbanDragLeave(event)">
+        <div class="kanban-col-header">Por hacer</div>
+        <div class="kanban-col-body" id="kanban-todo"></div>
+      </div>
+      <div class="kanban-col" data-estado="progress" ondragover="kanbanDragOver(event)" ondrop="kanbanDrop(event,'progress')" ondragleave="kanbanDragLeave(event)">
+        <div class="kanban-col-header">En progreso</div>
+        <div class="kanban-col-body" id="kanban-progress"></div>
+      </div>
+      <div class="kanban-col" data-estado="done" ondragover="kanbanDragOver(event)" ondrop="kanbanDrop(event,'done')" ondragleave="kanbanDragLeave(event)">
+        <div class="kanban-col-header">Realizado</div>
+        <div class="kanban-col-body" id="kanban-done"></div>
+      </div>
+    </main>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Modal: Nuevo Proyecto -->
+<div class="modal-overlay" id="modal-nuevo-proyecto">
+  <div class="modal">
+    <h3>Nuevo proyecto</h3>
+    <div class="modal-campo">
+      <label>Nombre del proyecto</label>
+      <input type="text" id="modal-nombre-proyecto" placeholder="Mi novela, El mundo de X...">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmarCrearProyecto()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva Línea Temporal -->
+<div class="modal-overlay" id="modal-nueva-linea">
+  <div class="modal">
+    <h3>Nueva línea temporal</h3>
+    <div class="modal-campo">
+      <label>Nombre</label>
+      <input type="text" id="modal-linea-nombre" placeholder="Ej: arco principal, infancia de Yani...">
+    </div>
+    <div class="modal-campo">
+      <label>Tipo</label>
+      <div class="tipo-timeline-btns" style="margin-top:4px;">
+        <button class="tipo-btn active" id="tipo-btn-trama" onclick="selTipo('trama')">⊶ Por trama</button>
+        <button class="tipo-btn" id="tipo-btn-personaje" onclick="selTipo('personaje')">◈ Por personaje</button>
+      </div>
+      <input type="hidden" id="modal-linea-tipo" value="trama">
+    </div>
+    <div class="modal-campo">
+      <label>Disposición</label>
+      <select id="modal-linea-orientacion">
+        <option value="horizontal">Horizontal</option>
+        <option value="vertical">Vertical</option>
+      </select>
+    </div>
+    <div class="modal-campo" id="modal-linea-personaje-campo" style="display:none;">
+      <label>Personaje</label>
+      <select id="modal-linea-personaje">
+        <option value="">— Elegir personaje —</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmarNuevaLinea()">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Personaje -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal">
+    <div id="modal-detalle-contenido"></div>
+    <div class="detalle-sep"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
+      <button class="btn-confirm" id="btn-editar-personaje" onclick="abrirEdicion()">✏ Editar</button>
+      <button class="btn-danger" id="btn-eliminar-personaje" onclick="confirmarEliminar()">✕ Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar personaje -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal">
+    <h3>Editar personaje</h3>
+    <div class="modal-campo"><label>Nombre</label><input type="text" id="edit-nombre"></div>
+    <div class="modal-campo"><label>Apellido</label><input type="text" id="edit-apellido"></div>
+    <div class="modal-campo"><label>Familia / casa</label><input type="text" id="edit-familia"></div>
+    <div class="modal-campo"><label>Raza / especie</label><input type="text" id="edit-raza"></div>
+    <div class="modal-campo"><label>Género</label><input type="text" id="edit-genero"></div>
+    <div class="modal-campo"><label>Fecha de nacimiento</label><input type="text" id="edit-fecha-nacimiento"></div>
+    <div class="modal-campo"><label>Fecha de muerte</label><input type="text" id="edit-fecha-muerte"></div>
+    <div class="modal-campo"><label>Edad</label><input type="text" id="edit-edad"></div>
+    <div class="modal-campo">
+      <label>Vínculo</label>
+      <select id="edit-vinculo" onchange="onEditVinculoChange()">
+        <option value="">— Sin definir —</option>
+        <option value="padre">Padre</option><option value="madre">Madre</option>
+        <option value="hijo">Hijo/a</option><option value="hijastro">Hijastro/a</option>
+        <option value="hijo-adoptivo">Hijo/a adoptivo/a</option>
+        <option value="hermano">Hermano/a</option><option value="medio-hermano">Medio hermano/a</option>
+        <option value="hermanastro">Hermanastro/a</option>
+        <option value="conyuge">Cónyuge</option><option value="concubino">Concubino/a</option>
+        <option value="amante">Amante</option><option value="prometido">Prometido/a</option>
+        <option value="ex-pareja">Ex pareja</option><option value="pareja-secreta">Pareja secreta</option>
+        <option value="abuelo">Abuelo/a</option><option value="nieto">Nieto/a</option>
+        <option value="tio">Tío/a</option><option value="sobrino">Sobrino/a</option>
+        <option value="primo">Primo/a</option><option value="bisabuelo">Bisabuelo/a</option>
+        <option value="tutor">Tutor/a</option><option value="mentor">Mentor/a</option>
+        <option value="aliado">Aliado/a</option><option value="rival">Rival</option>
+        <option value="amigos">Amigos</option><option value="otro">Otro</option>
+      </select>
+    </div>
+    <div class="modal-campo" id="edit-vinculos-box" style="display:none;">
+      <label>Vincular con</label>
+      <div class="progenitores-lista" id="edit-vinculos-lista"></div>
+    </div>
+    <div class="modal-campo" id="edit-vinculo-otro-box" style="display:none;">
+      <label>Descripción del vínculo</label>
+      <input type="text" id="edit-vinculo-otro-texto">
+    </div>
+    <div class="modal-campo">
+      <label>Etiquetas</label>
+      <div id="etiquetas-edit-personaje" class="etiquetas-container"></div>
+      <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-edit-personaje')">+ Agregar otra etiqueta</button>
+    </div>
+    <div class="modal-campo"><label>Notas</label><textarea id="edit-notas" style="min-height:70px;"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="guardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar Eliminación -->
+<div class="modal-overlay" id="modal-confirmar-eliminar">
+  <div class="modal">
+    <h3>Eliminar personaje</h3>
+    <div class="confirm-texto">¿Eliminar a <span class="confirm-nombre" id="confirm-nombre-personaje"></span> del árbol?</div>
+    <div class="confirm-aviso">Esta acción eliminará al personaje del proyecto y del almacenamiento local. No se puede deshacer.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-danger" onclick="ejecutarEliminar()">Eliminar definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Evento Timeline -->
+<div class="modal-overlay" id="modal-tl-detalle">
+  <div class="modal">
+    <div id="modal-tl-contenido"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
+      <button class="btn-confirm" id="btn-editar-evento" onclick="abrirEdicionEvento()">✏ Editar</button>
+      <button class="btn-danger" onclick="confirmarEliminarEvento()">✕ Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Evento -->
+<div class="modal-overlay" id="modal-tl-editar">
+  <div class="modal">
+    <h3>Editar evento</h3>
+    <div class="modal-campo"><label>Título</label><input type="text" id="tl-edit-titulo"></div>
+    <div class="modal-campo"><label>Fecha / año ficticio</label><input type="text" id="tl-edit-fecha"></div>
+    <div class="modal-campo"><label>Lugar</label><input type="text" id="tl-edit-lugar"></div>
+    <div class="modal-campo"><label>Descripción</label><textarea id="tl-edit-desc" style="min-height:80px;"></textarea></div>
+    <div class="modal-campo">
+      <label>Etiquetas</label>
+      <div id="etiquetas-edit-tl" class="etiquetas-container"></div>
+      <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-edit-tl')">+ Agregar otra etiqueta</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="guardarEdicionEvento()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Nota -->
+<div class="modal-overlay" id="modal-cuad-editar">
+  <div class="modal">
+    <h3>Editar nota</h3>
+    <div class="modal-campo"><label>Tipo</label>
+      <select id="cuad-edit-tipo" onchange="onCuadEditTipoChange()">
+        <option value="ideas">Ideas</option>
+        <option value="escenas">Escenas</option>
+        <option value="ambientacion">Ambientación</option>
+        <option value="escaleta">Escaleta</option>
+      </select>
+    </div>
+    <div class="modal-campo"><label>Título</label><input type="text" id="cuad-edit-titulo"></div>
+    <div id="cuad-edit-escaleta-campos" class="cuad-escaleta-campos">
+      <div class="modal-campo" style="margin:0;"><label>Capítulo</label><input type="text" id="cuad-edit-capitulo"></div>
+      <div class="modal-campo" style="margin:0;"><label>Referencias vinculadas</label><div id="cuad-edit-refs-display" style="font-size:0.8rem;color:rgba(201,169,110,0.6);font-style:italic;"></div></div>
+    </div>
+    <div class="modal-campo"><label>Contenido</label><textarea id="cuad-edit-contenido" style="min-height:90px;"></textarea></div>
+    <div class="modal-campo">
+      <label>Etiquetas</label>
+      <div id="etiquetas-edit-cuad" class="etiquetas-container"></div>
+      <button type="button" class="btn-agregar-etiqueta" onclick="agregarFilaEtiqueta('etiquetas-edit-cuad')">+ Agregar otra etiqueta</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="cuadGuardarEdicion()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle Nota -->
+<div class="modal-overlay" id="modal-cuad-detalle">
+  <div class="modal">
+    <div id="modal-cuad-contenido"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
+      <button class="btn-confirm" onclick="cuadAbrirEdicion()">✏ Editar</button>
+      <button class="btn-danger" onclick="cuadConfirmarEliminar()">✕ Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Tutorial Progreso -->
+<div class="modal-overlay" id="modal-tutorial-progreso">
+  <div class="modal" style="max-width:480px;">
+    <h3>Bienvenida a Progreso</h3>
+    <div class="tutorial-paso"><strong>Paso 1.</strong> Creá tareas con título, descripción y fecha límite en el panel izquierdo.</div>
+    <div class="tutorial-paso"><strong>Paso 2.</strong> Las tareas nuevas aparecen en la columna «Por hacer».</div>
+    <div class="tutorial-paso"><strong>Paso 3.</strong> Arrastrá cada tarjeta a «En progreso» mientras trabajás en ella.</div>
+    <div class="tutorial-paso"><strong>Paso 4.</strong> Cuando termines, movela a «Realizado».</div>
+    <div class="tutorial-paso"><strong>Paso 5.</strong> Si se vence la fecha y no está en «Realizado», la tarjeta se marca en rojo con la etiqueta «Atrasado».</div>
+    <div class="modal-btns">
+      <button class="btn-confirm" onclick="cerrarTutorialProgreso()">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Tarea Kanban -->
+<div class="modal-overlay" id="modal-prog-editar">
+  <div class="modal">
+    <h3>Editar tarea</h3>
+    <div class="modal-campo"><label>Título</label><input type="text" id="prog-edit-titulo"></div>
+    <div class="modal-campo"><label>Descripción</label><textarea id="prog-edit-desc" style="min-height:70px;"></textarea></div>
+    <div class="modal-campo"><label>Fecha límite</label><input type="date" id="prog-edit-fecha"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModales()">Cancelar</button>
+      <button class="btn-confirm" onclick="progGuardarEdicion()">Guardar cambios</button>
+      <button class="btn-danger" onclick="progEliminarTarea()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ========== FIREBASE CONFIG ==========
+// Reemplazá estos valores con los de tu proyecto en console.firebase.google.com
+const FIREBASE_CONFIG = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+const FIREBASE_ACTIVO = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('TU_');
+
+let firebaseUser = null;
+let db = null;
+
+function initFirebase() {
+  if (!FIREBASE_ACTIVO || typeof firebase === 'undefined') return;
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  firebase.auth().onAuthStateChanged(async (user) => {
+    firebaseUser = user;
+    if (user) {
+      document.getElementById('login-pantalla').classList.remove('visible');
+      document.getElementById('app-main').classList.remove('bloqueada');
+      document.getElementById('user-bar').classList.add('visible');
+      document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
+      await cargarDeNube();
+      iniciarApp();
+    } else {
+      document.getElementById('login-pantalla').classList.add('visible');
+      document.getElementById('app-main').classList.add('bloqueada');
+      document.getElementById('user-bar').classList.remove('visible');
+    }
+  });
+}
+async function loginConGoogle() {
+  if (!FIREBASE_ACTIVO) { mostrarToast('Firebase no está configurado todavía.'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await firebase.auth().signInWithPopup(provider);
+  } catch(e) {
+    if (e.code !== 'auth/popup-closed-by-user') mostrarToast('Error al iniciar sesión.');
+  }
+}
+async function cerrarSesion() {
+  if (firebaseUser) await firebase.auth().signOut();
+  proyectos = {}; proyectoActual = null;
+  actualizarDropdowns(); renderArbol();
+}
+async function cargarDeNube() {
+  if (!firebaseUser || !db) return;
+  try {
+    const snap = await db.collection('usuarios').doc(firebaseUser.uid).get();
+    if (snap.exists && snap.data().proyectos) {
+      proyectos = snap.data().proyectos;
+    } else {
+      const local = localStorage.getItem('linajes-v2');
+      if (local) {
+        proyectos = JSON.parse(local);
+        await guardarEnNube();
+        mostrarToast('Tus proyectos locales se migraron a la nube.');
+      }
+    }
+    Object.keys(proyectos).forEach(k => migrarProyecto(proyectos[k]));
+    actualizarDropdowns();
+  } catch(e) { mostrarToast('Error al cargar datos de la nube.'); }
+}
+async function guardarEnNube() {
+  if (!firebaseUser || !db) return;
+  try {
+    await db.collection('usuarios').doc(firebaseUser.uid).set({ proyectos, updatedAt: Date.now() });
+  } catch(e) { mostrarToast('Error al guardar en la nube.'); }
+}
+
+// ========== CONSTANTES ==========
+const PARENTESCOS_HIJO = ['hijo','hijastro','hijo-adoptivo','nieto'];
+const PARENTESCOS_PAREJA = ['conyuge','concubino','amante','prometido','ex-pareja','pareja-secreta'];
+const PARENTESCOS_SECRETO = ['amante','pareja-secreta','ex-pareja'];
+const TIPOS_NOTA = { ideas: 'Ideas', escenas: 'Escenas', ambientacion: 'Ambientación', escaleta: 'Escaleta' };
+const PALETA_COLORES = ['#5C1B1B','#7A2525','#8B6330','#2A5C4A','#3D4A6B','#5C3D6B','#6B4A2A','#4A6B3D','#4A4A6B','#6B3D3D'];
+
+// ========== ESTADO ==========
+let proyectos = {};
+let proyectoActual = null;
+let tlLineaActual = null;
+let personajeSeleccionado = null;
+let eventoSeleccionado = null;
+let notaSeleccionada = null;
+let tareaSeleccionada = null;
+let tlDragId = null;
+let kanbanDragId = null;
+
+// ========== UTILIDADES ==========
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getVinculo(p) { return p.vinculo || p.parentesco || ''; }
+function htmlEtiquetas(etiquetas) {
+  return (etiquetas||[]).map(e =>
+    `<span class="etiqueta-chip" style="background:${esc(e.color)};color:#f0e6d3;">${esc(e.texto)}</span>`
+  ).join('');
+}
+function htmlTextoExpandible(texto, id) {
+  if (!texto) return '';
+  const t = esc(texto);
+  if (texto.length <= 120) return `<div class="texto-truncable">${t.replace(/\n/g,'<br>')}</div>`;
+  return `<div class="texto-truncable collapsed" id="txt-${id}">${t.replace(/\n/g,'<br>')}</div><span class="expandir-link" onclick="toggleExpandir('txt-${id}',this)">... ver más</span>`;
+}
+function toggleExpandir(id, link) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const exp = el.classList.toggle('collapsed');
+  link.textContent = exp ? '... ver más' : 'ver menos';
+}
+function agregarFilaEtiqueta(containerId, data) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const fila = document.createElement('div');
+  fila.className = 'etiqueta-fila';
+  const color = data?.color || PALETA_COLORES[c.querySelectorAll('.etiqueta-fila').length % PALETA_COLORES.length];
+  const texto = data?.texto || '';
+  let swatches = PALETA_COLORES.map(col =>
+    `<div class="color-swatch${col===color?' selected':''}" style="background:${col}" data-color="${col}" onclick="selColorSwatch(this)"></div>`
+  ).join('');
+  fila.innerHTML = `<input type="text" class="etiqueta-input" placeholder="Etiqueta..." value="${esc(texto)}"><div class="color-grid">${swatches}</div>`;
+  fila.dataset.color = color;
+  c.appendChild(fila);
+}
+function selColorSwatch(el) {
+  const fila = el.closest('.etiqueta-fila');
+  fila.dataset.color = el.dataset.color;
+  fila.querySelectorAll('.color-swatch').forEach(s => s.classList.toggle('selected', s===el));
+}
+function leerEtiquetas(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return [];
+  return [...c.querySelectorAll('.etiqueta-fila')].map(f => ({
+    texto: f.querySelector('.etiqueta-input')?.value.trim() || '',
+    color: f.dataset.color || PALETA_COLORES[0],
+  })).filter(e => e.texto);
+}
+function cargarEtiquetasEnForm(containerId, etiquetas) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML = '';
+  (etiquetas?.length ? etiquetas : [{}]).forEach(e => agregarFilaEtiqueta(containerId, e));
+}
+function migrarProyecto(p) {
+  if (!p.notas) p.notas = [];
+  if (!p.tareas) p.tareas = [];
+  (p.personajes||[]).forEach(per => {
+    if (!per.etiquetas) per.etiquetas = [];
+    if (!per.vinculadosIds) per.vinculadosIds = [...new Set([...(per.progenitoresIds||[]), ...(per.parejaIds||[])])];
+    if (!per.vinculo && per.parentesco) per.vinculo = per.parentesco;
+  });
+  (p.timelines||[]).forEach(tl => {
+    if (!tl.orientacion) tl.orientacion = 'horizontal';
+    (tl.eventos||[]).forEach(ev => { if (!ev.etiquetas) ev.etiquetas = []; });
+  });
+  (p.notas||[]).forEach(n => {
+    if (!n.etiquetas) n.etiquetas = [];
+    if (!n.referencias) n.referencias = [];
+    if (n.tipo==='escaleta' && n.orden===undefined) n.orden = n.id;
+  });
+}
+
+// ========== TAB ==========
+function cambiarTab(tab) {
+  const tabs = ['arbol','timeline','cuaderno','progreso'];
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', tabs[i] === tab));
+  document.getElementById('tab-arbol').classList.toggle('active', tab==='arbol');
+  document.getElementById('tab-timeline').classList.toggle('active', tab==='timeline');
+  document.getElementById('tab-cuaderno').classList.toggle('active', tab==='cuaderno');
+  document.getElementById('tab-progreso').classList.toggle('active', tab==='progreso');
+  if (tab==='timeline') sincronizarTLProyecto();
+  if (tab==='cuaderno') sincronizarCuadProyecto();
+  if (tab==='progreso') { sincronizarProgProyecto(); verificarTutorialProgreso(); }
+}
+function syncProyectoDropdowns() {
+  ['select-proyecto','tl-select-proyecto','cuad-select-proyecto','prog-select-proyecto'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = proyectoActual || '';
+  });
+}
+
+// ========== STORAGE ==========
+function cargarDeStorage() {
+  if (FIREBASE_ACTIVO) return;
+  try {
+    const d = localStorage.getItem('linajes-v2');
+    if (d) {
+      proyectos = JSON.parse(d);
+      Object.keys(proyectos).forEach(k => migrarProyecto(proyectos[k]));
+      actualizarDropdowns();
+    }
+  } catch(e) {}
+}
+function guardarEnStorage() {
+  if (FIREBASE_ACTIVO && firebaseUser) {
+    guardarEnNube();
+    return;
+  }
+  try { localStorage.setItem('linajes-v2', JSON.stringify(proyectos)); } catch(e) {}
+}
+
+// ========== PROYECTOS ==========
+function mostrarModalNuevoProyecto() {
+  document.getElementById('modal-nombre-proyecto').value = '';
+  document.getElementById('modal-nuevo-proyecto').classList.add('visible');
+  setTimeout(() => document.getElementById('modal-nombre-proyecto').focus(), 80);
+}
+function confirmarCrearProyecto() {
+  const nombre = document.getElementById('modal-nombre-proyecto').value.trim();
+  if (!nombre) { mostrarToast('Escribí un nombre.'); return; }
+  if (proyectos[nombre]) { mostrarToast('Ya existe ese proyecto.'); return; }
+  proyectos[nombre] = { personajes: [], timelines: [], notas: [], tareas: [] };
+  guardarEnStorage();
+  actualizarDropdowns();
+  document.getElementById('select-proyecto').value = nombre;
+  proyectoActual = nombre;
+  renderArbol();
+  cerrarModales();
+  mostrarToast(`Proyecto «${nombre}» creado.`);
+}
+function cambiarProyecto() {
+  proyectoActual = document.getElementById('select-proyecto').value || null;
+  syncProyectoDropdowns();
+  limpiarFormulario();
+  renderArbol();
+}
+function guardarProyecto() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná un proyecto.'); return; }
+  guardarEnStorage();
+  mostrarToast(`proyecto «${proyectoActual}» guardado`);
+}
+function actualizarDropdowns() {
+  const nombres = Object.keys(proyectos);
+  ['select-proyecto','tl-select-proyecto','cuad-select-proyecto','prog-select-proyecto'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Seleccionar proyecto —</option>';
+    nombres.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n; sel.appendChild(o);
+    });
+    if (cur && proyectos[cur]) sel.value = cur;
+  });
+}
+
+// ========== VÍNCULOS ==========
+function onVinculoChange() {
+  const val = document.getElementById('vinculo').value;
+  document.getElementById('vinculos-box').classList.toggle('visible', !!val);
+  document.getElementById('vinculo-otro-container').classList.toggle('visible', val === 'otro');
+  if (val) poblarListaVinculos('vinculos-lista', 'vinculo-personaje');
+}
+function onEditVinculoChange() {
+  const val = document.getElementById('edit-vinculo').value;
+  document.getElementById('edit-vinculos-box').style.display = val ? 'block' : 'none';
+  document.getElementById('edit-vinculo-otro-box').style.display = val === 'otro' ? 'block' : 'none';
+  if (val) poblarListaVinculosEdit();
+}
+function poblarListaVinculos(listaId, inputName, selectedIds) {
+  const lista = document.getElementById(listaId);
+  if (!lista) return;
+  lista.innerHTML = '';
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  if (!ps.length) {
+    lista.innerHTML = '<div style="padding:5px 8px;font-style:italic;font-size:0.78rem;color:rgba(201,169,110,0.4);">No hay personajes aún.</div>';
+    return;
+  }
+  const sel = new Set(selectedIds || []);
+  ps.forEach(p => {
+    const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
+    const item = document.createElement('div');
+    item.className = 'progenitor-item';
+    const checked = sel.has(p.id) ? 'checked' : '';
+    item.innerHTML = `<input type="checkbox" id="${inputName}-${p.id}" value="${p.id}" name="${inputName}" ${checked}><label for="${inputName}-${p.id}">${esc(nc)}${p.raza?`<span>${esc(p.raza)}</span>`:''}</label>`;
+    lista.appendChild(item);
+  });
+}
+function poblarListaVinculosEdit() {
+  const p = (proyectos[proyectoActual]?.personajes||[]).find(x => x.id === personajeSeleccionado);
+  poblarListaVinculos('edit-vinculos-lista', 'edit-vinculo-personaje', p?.vinculadosIds || []);
+}
+function leerVinculadosIds(inputName) {
+  const ids = [];
+  document.querySelectorAll(`input[name="${inputName}"]:checked`).forEach(cb => ids.push(parseInt(cb.value)));
+  return ids;
+}
+
+// ========== GUARDAR PERSONAJE ==========
+function guardarPersonaje() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná o creá un proyecto.'); return; }
+  const nombre = document.getElementById('nombre').value.trim();
+  if (!nombre) { mostrarToast('El nombre es obligatorio.'); return; }
+  const vinculo = document.getElementById('vinculo').value;
+  const vinculadosIds = leerVinculadosIds('vinculo-personaje');
+  const p = {
+    id: Date.now(),
+    nombre, apellido: document.getElementById('apellido').value.trim(),
+    familia: document.getElementById('familia').value.trim(),
+    raza: document.getElementById('raza').value.trim(),
+    genero: document.getElementById('genero').value.trim(),
+    fechaNacimiento: document.getElementById('fecha-nacimiento').value.trim(),
+    fechaMuerte: document.getElementById('fecha-muerte').value.trim(),
+    edad: document.getElementById('edad').value.trim(),
+    vinculo,
+    vinculadosIds,
+    vinculoOtroTexto: vinculo === 'otro' ? document.getElementById('vinculo-otro-texto').value.trim() : '',
+    etiquetas: leerEtiquetas('etiquetas-personaje'),
+    notas: document.getElementById('notas').value.trim(),
+    x: calcularX(), y: calcularY(),
+  };
+  proyectos[proyectoActual].personajes.push(p);
+  guardarEnStorage();
+  renderArbol();
+  limpiarFormulario();
+  mostrarToast(`${nombre} agregado al árbol.`);
+}
+function calcularX() {
+  const c = proyectos[proyectoActual]?.personajes.length || 0;
+  return 40 + (c%4)*210 + Math.random()*12;
+}
+function calcularY() {
+  const c = proyectos[proyectoActual]?.personajes.length || 0;
+  return 50 + Math.floor(c/4)*190 + Math.random()*12;
+}
+function limpiarFormulario() {
+  ['nombre','apellido','familia','raza','genero','fecha-nacimiento','fecha-muerte','edad','notas','vinculo-otro-texto'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('vinculo').value = '';
+  document.getElementById('vinculos-box').classList.remove('visible');
+  document.getElementById('vinculo-otro-container').classList.remove('visible');
+  document.getElementById('vinculos-lista').innerHTML = '';
+  cargarEtiquetasEnForm('etiquetas-personaje', []);
+}
+
+// ========== RENDER ÁRBOL ==========
+function renderArbol() {
+  const container = document.getElementById('personajes-container');
+  const svg = document.getElementById('arbol-svg');
+  const vacio = document.getElementById('arbol-vacio');
+  container.innerHTML = ''; svg.innerHTML = '';
+  if (!proyectoActual || !proyectos[proyectoActual]) { vacio.style.display='block'; return; }
+  const ps = proyectos[proyectoActual].personajes;
+  if (!ps.length) { vacio.style.display='block'; return; }
+  vacio.style.display='none';
+  const panel = document.getElementById('panel-arbol');
+  const canvas = document.getElementById('arbol-canvas');
+  const maxX = Math.max(...ps.map(p=>p.x+220), 600);
+  const maxY = Math.max(...ps.map(p=>p.y+180), 400);
+  canvas.style.width = maxX + 'px';
+  canvas.style.height = maxY + 'px';
+  svg.setAttribute('width',maxX); svg.setAttribute('height',maxY);
+  svg.style.width=maxX+'px'; svg.style.height=maxY+'px';
+  container.style.width = maxX + 'px';
+  container.style.height = maxY + 'px';
+  dibujarLineas(svg,ps);
+  ps.forEach(p => { const c=crearTarjeta(p); container.appendChild(c); habilitarArrastre(c,p); });
+}
+
+function dibujarLineas(svg,ps) {
+  const mapa = {};
+  ps.forEach(p => mapa[p.id]=p);
+  const parejasDib = new Set();
+  ps.forEach(p => {
+    const v = getVinculo(p);
+    const ids = p.vinculadosIds || [];
+    if (PARENTESCOS_HIJO.includes(v) && ids.length) {
+      ids.forEach(pid => {
+        const prog = mapa[pid];
+        if (prog) dibujarLineaFiliacion(svg, prog.x+82, prog.y+82, p.x+82, p.y);
+      });
+    } else if (PARENTESCOS_PAREJA.includes(v) && ids.length) {
+      const sec = PARENTESCOS_SECRETO.includes(v);
+      ids.forEach(pid => {
+        const clave = [p.id,pid].sort().join('-');
+        if (!parejasDib.has(clave)) {
+          parejasDib.add(clave);
+          const par = mapa[pid];
+          if (par) dibujarLineaPareja(svg, p.x+82, p.y+40, par.x+82, par.y+40, sec);
+        }
+      });
+    } else if (ids.length) {
+      ids.forEach(pid => {
+        const otro = mapa[pid];
+        if (otro) dibujarLineaFiliacion(svg, otro.x+82, otro.y+82, p.x+82, p.y);
+      });
+    }
+  });
+}
+function dibujarLineaFiliacion(svg,x1,y1,x2,y2) {
+  const midY = y1+(y2-y1)*0.5;
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',`M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`);
+  path.setAttribute('stroke','rgba(201,169,110,0.55)'); path.setAttribute('stroke-width','1.8');
+  path.setAttribute('fill','none'); path.setAttribute('stroke-linecap','round'); path.setAttribute('stroke-linejoin','round');
+  svg.appendChild(path);
+  const d = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+  d.setAttribute('points',`${x2},${y2-8} ${x2+5},${y2-3} ${x2},${y2+2} ${x2-5},${y2-3}`);
+  d.setAttribute('fill','rgba(201,169,110,0.5)'); svg.appendChild(d);
+}
+function dibujarLineaPareja(svg,x1,y1,x2,y2,sec) {
+  const cy = Math.min(y1,y2)-18;
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',`M ${x1} ${y1} Q ${(x1+x2)/2} ${cy} ${x2} ${y2}`);
+  path.setAttribute('stroke', sec?'rgba(180,60,60,0.55)':'rgba(180,100,100,0.65)');
+  path.setAttribute('stroke-width','1.8'); path.setAttribute('fill','none'); path.setAttribute('stroke-linecap','round');
+  if (sec) path.setAttribute('stroke-dasharray','5 4');
+  svg.appendChild(path);
+  [x1,x2].forEach((x,i) => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx',x); c.setAttribute('cy',i===0?y1:y2); c.setAttribute('r','4');
+    c.setAttribute('fill', sec?'rgba(180,60,60,0.6)':'rgba(180,100,100,0.7)');
+    svg.appendChild(c);
+  });
+}
+
+// ========== TARJETA ==========
+let clickTimer = null;
+function crearTarjeta(p) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tarjeta-personaje';
+  wrap.dataset.id = p.id;
+  wrap.style.left = p.x+'px'; wrap.style.top = p.y+'px';
+  const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
+  const v = getVinculo(p);
+  const tagsHtml = htmlEtiquetas(p.etiquetas);
+  wrap.innerHTML = `
+    <div class="pergamino">
+      <div class="pergamino-nombre">${esc(nc)}</div>
+      ${p.familia?`<div class="pergamino-familia">Casa ${esc(p.familia)}</div>`:''}
+      <div class="pergamino-meta">
+        ${p.raza?`<span class="pergamino-tag">${esc(p.raza)}</span>`:'<span></span>'}
+        ${v?`<span class="pergamino-tag">${esc(v)}</span>`:''}
+        ${p.edad?`<span class="pergamino-tag">${esc(p.edad)}</span>`:''}
+      </div>
+      ${tagsHtml?`<div style="margin-top:4px;text-align:center;">${tagsHtml}</div>`:''}
+      ${p.notas?htmlTextoExpandible(p.notas, 'p'+p.id):''}
+      <div class="tarjeta-btns">
+        <button class="tarjeta-btn edit" title="Editar" onclick="abrirDetallePersonaje(${p.id},true)">✏</button>
+        <button class="tarjeta-btn del" title="Eliminar" onclick="iniciarEliminar(${p.id})">✕</button>
+      </div>
+    </div>
+  `;
+  if (p.notas) wrap.title = p.notas;
+
+  // Doble clic para detalle
+  wrap.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    abrirDetallePersonaje(p.id, false);
+  });
+
+  return wrap;
+}
+
+// ========== DETALLE / EDITAR / ELIMINAR PERSONAJE ==========
+function abrirDetallePersonaje(id, directo) {
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  const p = ps.find(x=>x.id===id);
+  if (!p) return;
+  personajeSeleccionado = id;
+  if (directo) { abrirEdicion(); return; }
+
+  const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
+  const v = getVinculo(p);
+  const mapaId = {}; ps.forEach(x => mapaId[x.id]=x);
+  const vincNombres = (p.vinculadosIds||[]).map(pid => {
+    const pr = mapaId[pid];
+    return pr ? [pr.nombre,pr.apellido].filter(Boolean).join(' ') : '—';
+  });
+
+  document.getElementById('modal-detalle-contenido').innerHTML = `
+    <div class="detalle-nombre">${esc(nc)}</div>
+    <div class="detalle-subtitulo">${p.familia?`Casa ${esc(p.familia)}`:''}${p.familia&&p.raza?' · ':''}${esc(p.raza||'')}</div>
+    <div class="detalle-grid">
+      <div class="detalle-campo"><div class="detalle-campo-label">Género</div><div class="detalle-campo-valor">${esc(p.genero)||'—'}</div></div>
+      <div class="detalle-campo"><div class="detalle-campo-label">Edad</div><div class="detalle-campo-valor">${esc(p.edad)||'—'}</div></div>
+      <div class="detalle-campo"><div class="detalle-campo-label">Nacimiento</div><div class="detalle-campo-valor">${esc(p.fechaNacimiento)||'—'}</div></div>
+      <div class="detalle-campo"><div class="detalle-campo-label">Muerte</div><div class="detalle-campo-valor">${esc(p.fechaMuerte)||'—'}</div></div>
+      <div class="detalle-campo"><div class="detalle-campo-label">Vínculo</div><div class="detalle-campo-valor">${esc(v)||'—'}</div></div>
+      ${v==='otro'&&p.vinculoOtroTexto?`<div class="detalle-campo" style="grid-column:1/-1;"><div class="detalle-campo-label">Descripción</div><div class="detalle-campo-valor">${esc(p.vinculoOtroTexto)}</div></div>`:''}
+      ${vincNombres.length?`<div class="detalle-campo" style="grid-column:1/-1;"><div class="detalle-campo-label">Vinculado con</div><div class="detalle-campo-valor">${esc(vincNombres.join(', '))}</div></div>`:''}
+    </div>
+    ${p.etiquetas?.length?`<div style="margin-bottom:8px;">${htmlEtiquetas(p.etiquetas)}</div>`:''}
+    ${p.notas?`<div class="detalle-notas">${htmlTextoExpandible(p.notas,'det'+p.id)}</div>`:''}
+  `;
+  document.getElementById('modal-detalle').classList.add('visible');
+}
+
+function abrirEdicion() {
+  cerrarModales();
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  const p = ps.find(x=>x.id===personajeSeleccionado);
+  if (!p) return;
+  document.getElementById('edit-nombre').value = p.nombre||'';
+  document.getElementById('edit-apellido').value = p.apellido||'';
+  document.getElementById('edit-familia').value = p.familia||'';
+  document.getElementById('edit-raza').value = p.raza||'';
+  document.getElementById('edit-genero').value = p.genero||'';
+  document.getElementById('edit-fecha-nacimiento').value = p.fechaNacimiento||'';
+  document.getElementById('edit-fecha-muerte').value = p.fechaMuerte||'';
+  document.getElementById('edit-edad').value = p.edad||'';
+  document.getElementById('edit-vinculo').value = getVinculo(p);
+  document.getElementById('edit-vinculo-otro-texto').value = p.vinculoOtroTexto||'';
+  document.getElementById('edit-notas').value = p.notas||'';
+  cargarEtiquetasEnForm('etiquetas-edit-personaje', p.etiquetas);
+  onEditVinculoChange();
+  document.getElementById('modal-editar').classList.add('visible');
+}
+
+function guardarEdicion() {
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  const idx = ps.findIndex(x=>x.id===personajeSeleccionado);
+  if (idx===-1) return;
+  ps[idx].nombre = document.getElementById('edit-nombre').value.trim();
+  ps[idx].apellido = document.getElementById('edit-apellido').value.trim();
+  ps[idx].familia = document.getElementById('edit-familia').value.trim();
+  ps[idx].raza = document.getElementById('edit-raza').value.trim();
+  ps[idx].genero = document.getElementById('edit-genero').value.trim();
+  ps[idx].fechaNacimiento = document.getElementById('edit-fecha-nacimiento').value.trim();
+  ps[idx].fechaMuerte = document.getElementById('edit-fecha-muerte').value.trim();
+  ps[idx].edad = document.getElementById('edit-edad').value.trim();
+  ps[idx].vinculo = document.getElementById('edit-vinculo').value;
+  ps[idx].vinculadosIds = leerVinculadosIds('edit-vinculo-personaje');
+  ps[idx].vinculoOtroTexto = ps[idx].vinculo === 'otro' ? document.getElementById('edit-vinculo-otro-texto').value.trim() : '';
+  ps[idx].etiquetas = leerEtiquetas('etiquetas-edit-personaje');
+  ps[idx].notas = document.getElementById('edit-notas').value.trim();
+  guardarEnStorage();
+  renderArbol();
+  cerrarModales();
+  mostrarToast('Personaje actualizado.');
+}
+
+function iniciarEliminar(id) {
+  personajeSeleccionado = id;
+  confirmarEliminar();
+}
+function confirmarEliminar() {
+  cerrarModales();
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  const p = ps.find(x=>x.id===personajeSeleccionado);
+  if (!p) return;
+  document.getElementById('confirm-nombre-personaje').textContent = [p.nombre,p.apellido].filter(Boolean).join(' ');
+  document.getElementById('modal-confirmar-eliminar').classList.add('visible');
+}
+function ejecutarEliminar() {
+  if (!proyectoActual || !personajeSeleccionado) return;
+  const ps = proyectos[proyectoActual].personajes;
+  proyectos[proyectoActual].personajes = ps.filter(p => {
+    if (p.id === personajeSeleccionado) return false;
+    // Limpiar referencias en otros personajes
+    p.vinculadosIds = (p.vinculadosIds||[]).filter(id=>id!==personajeSeleccionado);
+    return true;
+  });
+  guardarEnStorage();
+  renderArbol();
+  cerrarModales();
+  mostrarToast('Personaje eliminado.');
+  personajeSeleccionado = null;
+}
+
+// ========== ARRASTRE ==========
+function habilitarArrastre(el, personaje) {
+  let dragging=false, ox=0, oy=0, moved=false;
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('tarjeta-btn') || e.target.classList.contains('expandir-link')) return;
+    dragging=true; moved=false;
+    ox=e.clientX-el.offsetLeft; oy=e.clientY-el.offsetTop;
+    el.style.zIndex=20; e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    moved=true;
+    const nx=Math.max(0,e.clientX-ox), ny=Math.max(0,e.clientY-oy);
+    el.style.left=nx+'px'; el.style.top=ny+'px';
+    personaje.x=nx; personaje.y=ny;
+    actualizarTamanoArbol();
+    const svg=document.getElementById('arbol-svg'); svg.innerHTML='';
+    dibujarLineas(svg, proyectos[proyectoActual].personajes);
+  });
+  document.addEventListener('mouseup', () => {
+    if (dragging) { dragging=false; el.style.zIndex=3; if(moved) guardarEnStorage(); }
+  });
+}
+function actualizarTamanoArbol() {
+  const ps = proyectos[proyectoActual]?.personajes || [];
+  if (!ps.length) return;
+  const canvas = document.getElementById('arbol-canvas');
+  const container = document.getElementById('personajes-container');
+  const svg = document.getElementById('arbol-svg');
+  const maxX = Math.max(...ps.map(p=>p.x+220), 600);
+  const maxY = Math.max(...ps.map(p=>p.y+180), 400);
+  canvas.style.width = maxX + 'px';
+  canvas.style.height = maxY + 'px';
+  container.style.width = maxX + 'px';
+  container.style.height = maxY + 'px';
+  svg.setAttribute('width',maxX); svg.setAttribute('height',maxY);
+  svg.style.width=maxX+'px'; svg.style.height=maxY+'px';
+}
+
+// ========== IMPORTAR / EXPORTAR ==========
+function exportarJSON() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná un proyecto.'); return; }
+  const data = { proyecto: proyectoActual, ...proyectos[proyectoActual] };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url;
+  a.download=`${proyectoActual.replace(/\s+/g,'_')}_linajes.json`; a.click();
+  URL.revokeObjectURL(url); mostrarToast('JSON exportado.');
+}
+function importarProyecto(event) {
+  const file = event.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const nombre = data.proyecto||file.name.replace('.json','');
+      proyectos[nombre] = { personajes: data.personajes||[], timelines: data.timelines||[], notas: data.notas||[], tareas: data.tareas||[] };
+      migrarProyecto(proyectos[nombre]);
+      guardarEnStorage(); actualizarDropdowns();
+      document.getElementById('select-proyecto').value=nombre;
+      proyectoActual=nombre; renderArbol();
+      mostrarToast(`Proyecto «${nombre}» importado.`);
+    } catch { mostrarToast('Error al leer el archivo JSON.'); }
+  };
+  reader.readAsText(file); event.target.value='';
+}
+
+// ========== TIMELINE ==========
+function sincronizarTLProyecto() {
+  const sel = document.getElementById('tl-select-proyecto');
+  sel.value = proyectoActual||'';
+  tlCambiarProyecto();
+}
+function tlCambiarProyecto() {
+  const val = document.getElementById('tl-select-proyecto').value;
+  proyectoActual = val||null;
+  syncProyectoDropdowns();
+  tlLineaActual = null;
+  actualizarDropdownLineas();
+  renderTimeline();
+}
+function actualizarDropdownLineas() {
+  const sel = document.getElementById('tl-select-linea');
+  sel.innerHTML='<option value="">— Seleccionar línea —</option>';
+  if (!proyectoActual) return;
+  const timelines = proyectos[proyectoActual]?.timelines||[];
+  timelines.forEach((tl,i) => {
+    const o=document.createElement('option');
+    o.value=i; o.textContent=`${tl.nombre} (${tl.tipo==='trama'?'Trama':'Personaje'} · ${tl.orientacion==='vertical'?'Vertical':'Horizontal'})`;
+    sel.appendChild(o);
+  });
+}
+function tlCambiarLinea() {
+  const val = document.getElementById('tl-select-linea').value;
+  tlLineaActual = val===''?null:parseInt(val);
+  poblarPersonajesTL();
+  renderTimeline();
+}
+
+// Selector tipo en modal
+function selTipo(t) {
+  document.getElementById('modal-linea-tipo').value=t;
+  document.getElementById('tipo-btn-trama').classList.toggle('active',t==='trama');
+  document.getElementById('tipo-btn-personaje').classList.toggle('active',t==='personaje');
+  const campo=document.getElementById('modal-linea-personaje-campo');
+  campo.style.display = t==='personaje'?'block':'none';
+  if (t==='personaje') poblarSelectPersonajeModal();
+}
+function poblarSelectPersonajeModal() {
+  const sel=document.getElementById('modal-linea-personaje');
+  sel.innerHTML='<option value="">— Elegir personaje —</option>';
+  const ps=proyectos[proyectoActual]?.personajes||[];
+  ps.forEach(p => {
+    const o=document.createElement('option');
+    o.value=p.id; o.textContent=[p.nombre,p.apellido].filter(Boolean).join(' ');
+    sel.appendChild(o);
+  });
+}
+
+function mostrarModalNuevaLinea() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná un proyecto.'); return; }
+  document.getElementById('modal-linea-nombre').value='';
+  document.getElementById('modal-linea-tipo').value='trama';
+  document.getElementById('tipo-btn-trama').classList.add('active');
+  document.getElementById('tipo-btn-personaje').classList.remove('active');
+  document.getElementById('modal-linea-personaje-campo').style.display='none';
+  document.getElementById('modal-nueva-linea').classList.add('visible');
+}
+function confirmarNuevaLinea() {
+  const nombre=document.getElementById('modal-linea-nombre').value.trim();
+  if (!nombre) { mostrarToast('Escribí un nombre para la línea.'); return; }
+  const tipo=document.getElementById('modal-linea-tipo').value;
+  const personajeId = tipo==='personaje'?document.getElementById('modal-linea-personaje').value:null;
+  if (tipo==='personaje'&&!personajeId) { mostrarToast('Seleccioná un personaje.'); return; }
+  const orientacion = document.getElementById('modal-linea-orientacion').value;
+  if (!proyectos[proyectoActual].timelines) proyectos[proyectoActual].timelines=[];
+  proyectos[proyectoActual].timelines.push({ nombre, tipo, orientacion, personajeId: personajeId?parseInt(personajeId):null, eventos:[] });
+  guardarEnStorage();
+  actualizarDropdownLineas();
+  const idx=proyectos[proyectoActual].timelines.length-1;
+  document.getElementById('tl-select-linea').value=idx;
+  tlLineaActual=idx;
+  poblarPersonajesTL();
+  renderTimeline();
+  cerrarModales();
+  mostrarToast(`Línea «${nombre}» creada.`);
+}
+function tlEliminarLinea() {
+  if (tlLineaActual===null) { mostrarToast('Seleccioná una línea primero.'); return; }
+  if (!confirm('¿Eliminar esta línea temporal y todos sus eventos?')) return;
+  proyectos[proyectoActual].timelines.splice(tlLineaActual,1);
+  guardarEnStorage();
+  tlLineaActual=null;
+  actualizarDropdownLineas();
+  renderTimeline();
+  mostrarToast('Línea eliminada.');
+}
+
+function poblarPersonajesTL() {
+  const lista=document.getElementById('tl-personajes-lista');
+  lista.innerHTML='';
+  const ps=proyectos[proyectoActual]?.personajes||[];
+  const tl = tlLineaActual !== null ? proyectos[proyectoActual]?.timelines?.[tlLineaActual] : null;
+  const personajeLineaId = tl?.tipo === 'personaje' ? tl.personajeId : null;
+  if (!ps.length) { lista.innerHTML='<div style="padding:5px;font-style:italic;font-size:0.78rem;color:rgba(201,169,110,0.4);">Sin personajes.</div>'; return; }
+  ps.forEach(p => {
+    const nc=[p.nombre,p.apellido].filter(Boolean).join(' ');
+    const item=document.createElement('div'); item.className='progenitor-item';
+    const checked = personajeLineaId && p.id === personajeLineaId ? 'checked' : '';
+    item.innerHTML=`<input type="checkbox" id="tlp-${p.id}" value="${p.id}" name="tl-personaje" ${checked}><label for="tlp-${p.id}">${nc}</label>`;
+    lista.appendChild(item);
+  });
+}
+
+function tlGuardarEvento() {
+  if (!proyectoActual) { mostrarToast('Seleccioná un proyecto.'); return; }
+  if (tlLineaActual===null) { mostrarToast('Seleccioná una línea temporal.'); return; }
+  const titulo=document.getElementById('tl-titulo').value.trim();
+  if (!titulo) { mostrarToast('El título es obligatorio.'); return; }
+  const personajesIds=[];
+  document.querySelectorAll('input[name="tl-personaje"]:checked').forEach(cb=>personajesIds.push(parseInt(cb.value)));
+  const tl = proyectos[proyectoActual].timelines[tlLineaActual];
+  if (tl.tipo === 'personaje' && tl.personajeId && !personajesIds.includes(tl.personajeId)) {
+    personajesIds.push(tl.personajeId);
+  }
+  const ev={
+    id:Date.now(),
+    titulo,
+    fecha:document.getElementById('tl-fecha').value.trim(),
+    lugar:document.getElementById('tl-lugar').value.trim(),
+    desc:document.getElementById('tl-desc').value.trim(),
+    personajesIds,
+    etiquetas: leerEtiquetas('etiquetas-tl'),
+  };
+  proyectos[proyectoActual].timelines[tlLineaActual].eventos.push(ev);
+  guardarEnStorage();
+  ['tl-titulo','tl-fecha','tl-lugar','tl-desc'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('input[name="tl-personaje"]').forEach(cb=>cb.checked=false);
+  cargarEtiquetasEnForm('etiquetas-tl', []);
+  renderTimeline();
+  mostrarToast('Evento agregado.');
+}
+
+// ========== RENDER TIMELINE ==========
+function renderTimeline() {
+  const cont=document.getElementById('tl-contenido');
+  if (!proyectoActual||tlLineaActual===null) {
+    cont.innerHTML='<div class="tl-vacio"><h2>Ningún evento registrado</h2><p>Seleccioná un proyecto y una línea temporal para comenzar.</p></div>';
+    return;
+  }
+  const tl=proyectos[proyectoActual].timelines[tlLineaActual];
+  if (!tl) { cont.innerHTML='<div class="tl-vacio"><h2>Línea no encontrada</h2></div>'; return; }
+
+  if (tl.orientacion === 'vertical') renderTLVerticalRail(cont, tl);
+  else renderTLHorizontal(cont, tl);
+  setupTLDragReorder(cont);
+}
+
+function getNombrePersonaje(id) {
+  const ps=proyectos[proyectoActual]?.personajes||[];
+  const p=ps.find(x=>x.id===id);
+  return p?[p.nombre,p.apellido].filter(Boolean).join(' '):'?';
+}
+
+function getEventosFiltrados(tl) {
+  // Línea «por personaje»: todos los eventos de esa línea pertenecen a ese personaje
+  return tl.eventos || [];
+}
+function mensajeVacioTL(tl) {
+  return `<div class="tl-vacio"><h2>Sin eventos aún</h2><p>Usá el formulario para agregar el primer evento a esta línea.</p></div>`;
+}
+function cardEventoTL(ev, extraClass) {
+  const tags = (ev.personajesIds||[]).map(id=>`<span class="tl-h-tag">${esc(getNombrePersonaje(id))}</span>`).join('');
+  const etiq = htmlEtiquetas(ev.etiquetas);
+  const desc = ev.desc ? htmlTextoExpandible(ev.desc, 'ev'+ev.id) : '';
+  return `<div class="tl-h-card">
+    <div class="tl-h-fecha">${esc(ev.fecha)||'Sin fecha'}</div>
+    <div class="tl-h-titulo">${esc(ev.titulo)}</div>
+    ${ev.lugar?`<div class="tl-h-lugar">⊹ ${esc(ev.lugar)}</div>`:''}
+    ${desc}
+    ${etiq?`<div class="tl-h-tags">${etiq}</div>`:''}
+    ${tags?`<div class="tl-h-tags">${tags}</div>`:''}
+    <div class="tl-h-btns">
+      <button class="tl-btn-mini" onclick="event.stopPropagation();abrirEdicionEvento_id(${ev.id})">✏</button>
+      <button class="tl-btn-mini del" onclick="event.stopPropagation();iniciarEliminarEvento(${ev.id})">✕</button>
+    </div>
+  </div>`;
+}
+function renderTLHorizontal(cont,tl) {
+  const eventos = getEventosFiltrados(tl);
+  if (!eventos.length) {
+    cont.innerHTML = mensajeVacioTL(tl);
+    return;
+  }
+  let html=`<div class="tl-horizontal"><div class="tl-h-linea-wrap"><div class="tl-h-rail"></div><div class="tl-h-eventos">`;
+  eventos.forEach((ev,i) => {
+    const arriba = i%2===0;
+    const card = cardEventoTL(ev);
+    html+=`<div class="tl-h-evento ${arriba?'arriba':'abajo'}" data-id="${ev.id}" ondblclick="abrirDetalleEvento(${ev.id})">
+      ${arriba?`${card}<div class="tl-h-stem"></div>`:`<div class="tl-h-stem"></div>${card}`}
+      <div class="tl-h-punto"></div></div>`;
+  });
+  html+=`</div></div></div>`;
+  cont.innerHTML=html;
+}
+function renderTLVerticalRail(cont, tl) {
+  const eventos = getEventosFiltrados(tl);
+  if (!eventos.length) {
+    cont.innerHTML = mensajeVacioTL(tl);
+    return;
+  }
+  let html = `<div class="tl-v-rail-layout"><div class="tl-v-rail-wrap"><div class="tl-v-rail-line"></div><div class="tl-v-rail-eventos">`;
+  eventos.forEach((ev, i) => {
+    const izq = i % 2 === 0;
+    const card = cardEventoTL(ev);
+    html += `<div class="tl-v-rail-evento" data-id="${ev.id}" ondblclick="abrirDetalleEvento(${ev.id})">`;
+    if (izq) {
+      html += `<div class="tl-v-rail-slot">${card}</div><div class="tl-v-rail-punto"></div><div class="tl-v-rail-slot vacio"></div>`;
+    } else {
+      html += `<div class="tl-v-rail-slot vacio"></div><div class="tl-v-rail-punto"></div><div class="tl-v-rail-slot der">${card}</div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div></div></div>`;
+  cont.innerHTML = html;
+}
+
+// ========== DETALLE / EDITAR / ELIMINAR EVENTO ==========
+function getTLEventoPorId(id) {
+  if (!proyectoActual||tlLineaActual===null) return null;
+  const evs=proyectos[proyectoActual].timelines[tlLineaActual].eventos;
+  return evs.find(e=>e.id===id)||null;
+}
+function abrirDetalleEvento(id) {
+  eventoSeleccionado=id;
+  const ev=getTLEventoPorId(id); if(!ev) return;
+  const tags=(ev.personajesIds||[]).map(id=>`<span class="tl-h-tag" style="font-size:0.78rem;padding:2px 7px;">${esc(getNombrePersonaje(id))}</span>`).join(' ');
+  document.getElementById('modal-tl-contenido').innerHTML=`
+    <div class="detalle-nombre" style="font-size:1.15rem;">${esc(ev.titulo)}</div>
+    <div class="detalle-subtitulo">${esc(ev.fecha||'')}${ev.fecha&&ev.lugar?' · ':''}${esc(ev.lugar||'')}</div>
+    ${ev.etiquetas?.length?`<div style="margin-bottom:8px;">${htmlEtiquetas(ev.etiquetas)}</div>`:''}
+    ${ev.desc?`<div class="detalle-notas" style="margin-bottom:10px;">${htmlTextoExpandible(ev.desc,'detev'+ev.id)}</div>`:''}
+    ${tags?`<div style="margin-top:6px;"><div class="detalle-campo-label" style="margin-bottom:5px;">Personajes involucrados</div>${tags}</div>`:''}
+  `;
+  document.getElementById('modal-tl-detalle').classList.add('visible');
+}
+function abrirEdicionEvento() {
+  cerrarModales();
+  const ev=getTLEventoPorId(eventoSeleccionado); if(!ev) return;
+  document.getElementById('tl-edit-titulo').value=ev.titulo||'';
+  document.getElementById('tl-edit-fecha').value=ev.fecha||'';
+  document.getElementById('tl-edit-lugar').value=ev.lugar||'';
+  document.getElementById('tl-edit-desc').value=ev.desc||'';
+  cargarEtiquetasEnForm('etiquetas-edit-tl', ev.etiquetas);
+  document.getElementById('modal-tl-editar').classList.add('visible');
+}
+function abrirEdicionEvento_id(id) {
+  eventoSeleccionado=id; abrirEdicionEvento();
+}
+function guardarEdicionEvento() {
+  if (!proyectoActual||tlLineaActual===null) return;
+  const evs=proyectos[proyectoActual].timelines[tlLineaActual].eventos;
+  const idx=evs.findIndex(e=>e.id===eventoSeleccionado); if(idx===-1) return;
+  evs[idx].titulo=document.getElementById('tl-edit-titulo').value.trim();
+  evs[idx].fecha=document.getElementById('tl-edit-fecha').value.trim();
+  evs[idx].lugar=document.getElementById('tl-edit-lugar').value.trim();
+  evs[idx].desc=document.getElementById('tl-edit-desc').value.trim();
+  evs[idx].etiquetas = leerEtiquetas('etiquetas-edit-tl');
+  guardarEnStorage(); renderTimeline(); cerrarModales(); mostrarToast('Evento actualizado.');
+}
+function iniciarEliminarEvento(id) {
+  eventoSeleccionado=id;
+  confirmarEliminarEvento();
+}
+function confirmarEliminarEvento() {
+  cerrarModales();
+  const ev=getTLEventoPorId(eventoSeleccionado); if(!ev) return;
+  if (!confirm(`¿Eliminar el evento "${ev.titulo}"? Esta acción no se puede deshacer.`)) return;
+  ejecutarEliminarEvento();
+}
+function ejecutarEliminarEvento() {
+  if (!proyectoActual||tlLineaActual===null) return;
+  const evs=proyectos[proyectoActual].timelines[tlLineaActual].eventos;
+  proyectos[proyectoActual].timelines[tlLineaActual].eventos=evs.filter(e=>e.id!==eventoSeleccionado);
+  guardarEnStorage(); renderTimeline(); cerrarModales(); mostrarToast('Evento eliminado.');
+}
+
+// ========== REORDENAR TIMELINE ==========
+function setupTLDragReorder(cont) {
+  cont.querySelectorAll('.tl-h-evento, .tl-v-rail-evento').forEach(el => {
+    el.draggable = true;
+    el.addEventListener('dragstart', e => {
+      if (e.target.classList.contains('tl-btn-mini')) { e.preventDefault(); return; }
+      tlDragId = parseInt(el.dataset.id);
+      el.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    el.addEventListener('dragend', () => {
+      el.classList.remove('dragging');
+      cont.querySelectorAll('.drag-over').forEach(x => x.classList.remove('drag-over'));
+      tlDragId = null;
+    });
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (parseInt(el.dataset.id) !== tlDragId) el.classList.add('drag-over');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      el.classList.remove('drag-over');
+      const targetId = parseInt(el.dataset.id);
+      if (!tlDragId || tlDragId === targetId) return;
+      reordenarEventoTL(tlDragId, targetId);
+    });
+  });
+}
+function reordenarEventoTL(fromId, toId) {
+  const evs = proyectos[proyectoActual].timelines[tlLineaActual].eventos;
+  const fromIdx = evs.findIndex(e => e.id === fromId);
+  const toIdx = evs.findIndex(e => e.id === toId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [item] = evs.splice(fromIdx, 1);
+  evs.splice(toIdx, 0, item);
+  guardarEnStorage();
+  renderTimeline();
+}
+
+// ========== CUADERNO ==========
+function onCuadTipoChange() {
+  const tipo = document.getElementById('cuad-tipo').value;
+  document.getElementById('cuad-escaleta-campos').classList.toggle('visible', tipo === 'escaleta');
+}
+function onCuadEditTipoChange() {
+  const tipo = document.getElementById('cuad-edit-tipo').value;
+  document.getElementById('cuad-edit-escaleta-campos').classList.toggle('visible', tipo === 'escaleta');
+}
+function onCuadRefTipoChange() {
+  const tipo = document.getElementById('cuad-ref-tipo').value;
+  const lista = document.getElementById('cuad-ref-lista');
+  lista.innerHTML = '';
+  if (!tipo || !proyectoActual) return;
+  if (tipo === 'personajes') {
+    const ps = proyectos[proyectoActual]?.personajes || [];
+    if (!ps.length) { lista.innerHTML = '<div style="padding:5px;font-style:italic;font-size:0.78rem;color:rgba(201,169,110,0.4);">Sin personajes.</div>'; return; }
+    ps.forEach(p => {
+      const nc = [p.nombre,p.apellido].filter(Boolean).join(' ');
+      lista.innerHTML += `<div class="progenitor-item"><input type="checkbox" id="cuadref-p-${p.id}" value="${p.id}" name="cuad-ref" data-tipo="personaje"><label for="cuadref-p-${p.id}">${esc(nc)}</label></div>`;
+    });
+  } else {
+    const tls = proyectos[proyectoActual]?.timelines || [];
+    let hay = false;
+    tls.forEach((tl, li) => {
+      (tl.eventos||[]).forEach(ev => {
+        hay = true;
+        lista.innerHTML += `<div class="progenitor-item"><input type="checkbox" id="cuadref-e-${ev.id}" value="${ev.id}" name="cuad-ref" data-tipo="evento" data-linea="${li}"><label for="cuadref-e-${ev.id}">${esc(ev.titulo)} <span>(${esc(tl.nombre)})</span></label></div>`;
+      });
+    });
+    if (!hay) lista.innerHTML = '<div style="padding:5px;font-style:italic;font-size:0.78rem;color:rgba(201,169,110,0.4);">Sin eventos en líneas temporales.</div>';
+  }
+}
+function leerReferenciasCuad() {
+  const refs = [];
+  document.querySelectorAll('input[name="cuad-ref"]:checked').forEach(cb => {
+    refs.push({
+      tipo: cb.dataset.tipo,
+      id: parseInt(cb.value),
+      lineaIdx: cb.dataset.linea !== undefined ? parseInt(cb.dataset.linea) : null,
+    });
+  });
+  return refs;
+}
+function getRefDetalle(ref) {
+  if (ref.tipo === 'personaje') {
+    const p = (proyectos[proyectoActual]?.personajes||[]).find(x => x.id === ref.id);
+    if (!p) return 'Personaje no encontrado';
+    return `${[p.nombre,p.apellido].filter(Boolean).join(' ')}${p.familia?' — Casa '+p.familia:''}${p.notas?'\n'+p.notas:''}`;
+  }
+  const tl = proyectos[proyectoActual]?.timelines?.[ref.lineaIdx];
+  const ev = tl?.eventos?.find(e => e.id === ref.id);
+  if (!ev) return 'Evento no encontrado';
+  return `${ev.titulo}${ev.fecha?' · '+ev.fecha:''}${ev.lugar?' · '+ev.lugar:''}${ev.desc?'\n'+ev.desc:''}`;
+}
+function getRefLabel(ref) {
+  if (ref.tipo === 'personaje') {
+    const p = (proyectos[proyectoActual]?.personajes||[]).find(x => x.id === ref.id);
+    return p ? [p.nombre,p.apellido].filter(Boolean).join(' ') : 'Personaje';
+  }
+  const tl = proyectos[proyectoActual]?.timelines?.[ref.lineaIdx];
+  const ev = tl?.eventos?.find(e => e.id === ref.id);
+  return ev ? ev.titulo : 'Evento';
+}
+function htmlReferencias(refs, prefix) {
+  return (refs||[]).map((r,i) => {
+    const uid = `${prefix}-ref-${i}`;
+    return `<span class="ref-tag" onclick="toggleRefDetalle('${uid}')">${esc(getRefLabel(r))}</span><div class="ref-detalle" id="${uid}">${esc(getRefDetalle(r)).replace(/\n/g,'<br>')}</div>`;
+  }).join('');
+}
+function toggleRefDetalle(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+function sincronizarCuadProyecto() {
+  document.getElementById('cuad-select-proyecto').value = proyectoActual || '';
+  renderCuaderno();
+}
+function cuadCambiarProyecto() {
+  const val = document.getElementById('cuad-select-proyecto').value;
+  proyectoActual = val || null;
+  syncProyectoDropdowns();
+  renderCuaderno();
+}
+function cuadGuardarNota() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná un proyecto.'); return; }
+  const tipo = document.getElementById('cuad-tipo').value;
+  const titulo = document.getElementById('cuad-titulo').value.trim();
+  const contenido = document.getElementById('cuad-contenido').value.trim();
+  if (!tipo) { mostrarToast('Seleccioná un tipo.'); return; }
+  if (!titulo) { mostrarToast('El título es obligatorio.'); return; }
+  if (!proyectos[proyectoActual].notas) proyectos[proyectoActual].notas = [];
+  const notas = proyectos[proyectoActual].notas;
+  const nota = {
+    id: Date.now(), tipo, titulo, contenido,
+    etiquetas: leerEtiquetas('etiquetas-cuad'),
+    referencias: tipo === 'escaleta' ? leerReferenciasCuad() : [],
+    capitulo: tipo === 'escaleta' ? document.getElementById('cuad-capitulo').value.trim() : '',
+    orden: Date.now(),
+  };
+  if (tipo !== 'escaleta') {
+    const c = notas.filter(n => n.tipo !== 'escaleta').length;
+    nota.x = 40 + (c % 4) * 200 + Math.random() * 12;
+    nota.y = 50 + Math.floor(c / 4) * 170 + Math.random() * 12;
+  }
+  notas.push(nota);
+  guardarEnStorage();
+  document.getElementById('cuad-tipo').value = '';
+  document.getElementById('cuad-titulo').value = '';
+  document.getElementById('cuad-contenido').value = '';
+  document.getElementById('cuad-capitulo').value = '';
+  document.getElementById('cuad-ref-tipo').value = '';
+  document.getElementById('cuad-ref-lista').innerHTML = '';
+  document.getElementById('cuad-escaleta-campos').classList.remove('visible');
+  cargarEtiquetasEnForm('etiquetas-cuad', []);
+  renderCuaderno();
+  mostrarToast('Nota agregada.');
+}
+function renderCuaderno() {
+  const container = document.getElementById('cuad-notas-container');
+  const canvas = document.getElementById('cuad-canvas');
+  const escaletaCont = document.getElementById('cuad-escaleta-container');
+  const vacio = document.getElementById('cuad-vacio');
+  container.innerHTML = '';
+  escaletaCont.innerHTML = '';
+  if (!proyectoActual || !proyectos[proyectoActual]) {
+    vacio.style.display = 'block'; escaletaCont.style.display = 'none';
+    canvas.style.width = ''; canvas.style.height = '';
+    return;
+  }
+  const notas = proyectos[proyectoActual].notas || [];
+  if (!notas.length) {
+    vacio.style.display = 'block'; escaletaCont.style.display = 'none';
+    canvas.style.width = ''; canvas.style.height = '';
+    return;
+  }
+  vacio.style.display = 'none';
+  const escaletas = notas.filter(n => n.tipo === 'escaleta').sort((a,b) => (a.orden||0)-(b.orden||0));
+  const otras = notas.filter(n => n.tipo !== 'escaleta');
+  if (escaletas.length) {
+    escaletaCont.style.display = 'flex';
+    escaletas.forEach((n) => escaletaCont.appendChild(crearTarjetaEscaleta(n)));
+    setupEscaletaDrag();
+  } else escaletaCont.style.display = 'none';
+  if (otras.length) {
+    let maxX = 600, maxY = 400;
+    otras.forEach(n => {
+      const card = crearTarjetaNota(n);
+      container.appendChild(card);
+      habilitarArrastreNota(card, n);
+      maxX = Math.max(maxX, (n.x || 40) + 220);
+      maxY = Math.max(maxY, (n.y || 50) + 200);
+    });
+    canvas.style.width = maxX + 'px';
+    canvas.style.height = maxY + 'px';
+    container.style.width = maxX + 'px';
+    container.style.height = maxY + 'px';
+  } else {
+    canvas.style.width = '';
+    canvas.style.height = '';
+    container.style.width = '';
+    container.style.height = '';
+  }
+}
+function crearTarjetaNota(n) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tarjeta-nota';
+  wrap.dataset.id = n.id;
+  wrap.style.left = (n.x || 40) + 'px';
+  wrap.style.top = (n.y || 50) + 'px';
+  wrap.innerHTML = `
+    <div class="nota-card">
+      <span class="nota-tag-tag ${n.tipo}">${TIPOS_NOTA[n.tipo] || n.tipo}</span>
+      <div class="nota-titulo">${esc(n.titulo)}</div>
+      ${n.contenido ? htmlTextoExpandible(n.contenido, 'n'+n.id) : ''}
+      ${n.etiquetas?.length ? `<div style="margin-top:5px;">${htmlEtiquetas(n.etiquetas)}</div>` : ''}
+      <div class="tarjeta-btns">
+        <button class="tarjeta-btn edit" title="Editar" onclick="cuadIniciarEdicion(${n.id})">✏</button>
+        <button class="tarjeta-btn del" title="Eliminar" onclick="cuadIniciarEliminar(${n.id})">✕</button>
+      </div>
+    </div>`;
+  wrap.addEventListener('dblclick', e => { e.stopPropagation(); cuadAbrirDetalle(n.id); });
+  return wrap;
+}
+function crearTarjetaEscaleta(n, idx) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tarjeta-escaleta';
+  wrap.dataset.id = n.id;
+  wrap.draggable = true;
+  wrap.innerHTML = `
+    <div class="escaleta-card">
+      <div class="escaleta-header">
+        ${n.capitulo?`<span class="escaleta-capitulo">Cap. ${esc(n.capitulo)}</span>`:''}
+        <span class="escaleta-titulo">${esc(n.titulo)}</span>
+        <span class="nota-tag-tag escaleta">Escaleta</span>
+      </div>
+      ${n.contenido ? htmlTextoExpandible(n.contenido, 'esc'+n.id) : ''}
+      ${n.etiquetas?.length ? `<div style="margin:6px 0;">${htmlEtiquetas(n.etiquetas)}</div>` : ''}
+      ${n.referencias?.length ? `<div style="margin-top:8px;">${htmlReferencias(n.referencias, 'e'+n.id)}</div>` : ''}
+      <div class="tarjeta-btns" style="opacity:1;margin-top:8px;">
+        <button class="tarjeta-btn edit" onclick="cuadIniciarEdicion(${n.id})">✏</button>
+        <button class="tarjeta-btn del" onclick="cuadIniciarEliminar(${n.id})">✕</button>
+      </div>
+    </div>`;
+  return wrap;
+}
+let escaletaDragId = null;
+function setupEscaletaDrag() {
+  const cont = document.getElementById('cuad-escaleta-container');
+  cont.querySelectorAll('.tarjeta-escaleta').forEach(el => {
+    el.addEventListener('dragstart', e => { escaletaDragId = parseInt(el.dataset.id); el.classList.add('dragging'); });
+    el.addEventListener('dragend', () => { el.classList.remove('dragging'); escaletaDragId = null; });
+    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', e => {
+      e.preventDefault(); el.classList.remove('drag-over');
+      const targetId = parseInt(el.dataset.id);
+      if (!escaletaDragId || escaletaDragId === targetId) return;
+      reordenarEscaleta(escaletaDragId, targetId);
+    });
+  });
+}
+function reordenarEscaleta(fromId, toId) {
+  const notas = proyectos[proyectoActual].notas.filter(n => n.tipo === 'escaleta');
+  const fromIdx = notas.findIndex(n => n.id === fromId);
+  const toIdx = notas.findIndex(n => n.id === toId);
+  if (fromIdx === -1 || toIdx === -1) return;
+  const [item] = notas.splice(fromIdx, 1);
+  notas.splice(toIdx, 0, item);
+  notas.forEach((n, i) => n.orden = i);
+  guardarEnStorage();
+  renderCuaderno();
+}
+function habilitarArrastreNota(el, nota) {
+  let dragging = false, ox = 0, oy = 0, moved = false;
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('tarjeta-btn') || e.target.classList.contains('expandir-link')) return;
+    dragging = true; moved = false;
+    ox = e.clientX - el.offsetLeft; oy = e.clientY - el.offsetTop;
+    el.style.zIndex = 20; e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    moved = true;
+    const nx = Math.max(0, e.clientX - ox), ny = Math.max(0, e.clientY - oy);
+    el.style.left = nx + 'px'; el.style.top = ny + 'px';
+    nota.x = nx; nota.y = ny;
+    actualizarTamanoCuaderno();
+  });
+  document.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; el.style.zIndex = 3; if (moved) guardarEnStorage(); }
+  });
+}
+function actualizarTamanoCuaderno() {
+  const notas = (proyectos[proyectoActual]?.notas || []).filter(n => n.tipo !== 'escaleta');
+  if (!notas.length) return;
+  const canvas = document.getElementById('cuad-canvas');
+  const container = document.getElementById('cuad-notas-container');
+  let maxX = 600, maxY = 400;
+  notas.forEach(n => {
+    maxX = Math.max(maxX, (n.x || 40) + 220);
+    maxY = Math.max(maxY, (n.y || 50) + 200);
+  });
+  canvas.style.width = maxX + 'px';
+  canvas.style.height = maxY + 'px';
+  container.style.width = maxX + 'px';
+  container.style.height = maxY + 'px';
+}
+function getNotaPorId(id) {
+  return (proyectos[proyectoActual]?.notas || []).find(n => n.id === id) || null;
+}
+function cuadAbrirDetalle(id) {
+  notaSeleccionada = id;
+  const n = getNotaPorId(id);
+  if (!n) return;
+  document.getElementById('modal-cuad-contenido').innerHTML = `
+    <span class="nota-tag-tag ${n.tipo}" style="font-size:0.7rem;margin-bottom:8px;">${TIPOS_NOTA[n.tipo] || n.tipo}</span>
+    <div class="detalle-nombre" style="font-size:1.15rem;">${esc(n.titulo)}</div>
+    ${n.capitulo?`<div class="detalle-subtitulo">Capítulo: ${esc(n.capitulo)}</div>`:''}
+    <div class="detalle-subtitulo">Proyecto: ${esc(proyectoActual)}</div>
+    ${n.etiquetas?.length?`<div style="margin:8px 0;">${htmlEtiquetas(n.etiquetas)}</div>`:''}
+    ${n.contenido?`<div class="detalle-notas" style="margin-top:12px;">${htmlTextoExpandible(n.contenido,'detn'+n.id)}</div>`:''}
+    ${n.referencias?.length?`<div style="margin-top:10px;">${htmlReferencias(n.referencias,'det'+n.id)}</div>`:''}
+  `;
+  document.getElementById('modal-cuad-detalle').classList.add('visible');
+}
+function cuadIniciarEdicion(id) { notaSeleccionada = id; cuadAbrirEdicion(); }
+function cuadAbrirEdicion() {
+  cerrarModales();
+  const n = getNotaPorId(notaSeleccionada);
+  if (!n) return;
+  document.getElementById('cuad-edit-tipo').value = n.tipo;
+  document.getElementById('cuad-edit-titulo').value = n.titulo;
+  document.getElementById('cuad-edit-contenido').value = n.contenido || '';
+  document.getElementById('cuad-edit-capitulo').value = n.capitulo || '';
+  document.getElementById('cuad-edit-refs-display').textContent = (n.referencias||[]).map(r => getRefLabel(r)).join(', ') || 'Sin referencias (creá una nueva nota para agregar)';
+  cargarEtiquetasEnForm('etiquetas-edit-cuad', n.etiquetas);
+  onCuadEditTipoChange();
+  document.getElementById('modal-cuad-editar').classList.add('visible');
+}
+function cuadGuardarEdicion() {
+  const n = getNotaPorId(notaSeleccionada);
+  if (!n) return;
+  n.tipo = document.getElementById('cuad-edit-tipo').value;
+  n.titulo = document.getElementById('cuad-edit-titulo').value.trim();
+  n.contenido = document.getElementById('cuad-edit-contenido').value.trim();
+  n.capitulo = n.tipo === 'escaleta' ? document.getElementById('cuad-edit-capitulo').value.trim() : '';
+  n.etiquetas = leerEtiquetas('etiquetas-edit-cuad');
+  if (!n.titulo) { mostrarToast('El título es obligatorio.'); return; }
+  guardarEnStorage();
+  renderCuaderno();
+  cerrarModales();
+  mostrarToast('Nota actualizada.');
+}
+function cuadIniciarEliminar(id) { notaSeleccionada = id; cuadConfirmarEliminar(); }
+function cuadConfirmarEliminar() {
+  cerrarModales();
+  const n = getNotaPorId(notaSeleccionada);
+  if (!n) return;
+  if (!confirm(`¿Eliminar la nota «${n.titulo}»? Esta acción no se puede deshacer.`)) return;
+  proyectos[proyectoActual].notas = proyectos[proyectoActual].notas.filter(x => x.id !== notaSeleccionada);
+  guardarEnStorage();
+  renderCuaderno();
+  notaSeleccionada = null;
+  mostrarToast('Nota eliminada.');
+}
+
+// ========== PROGRESO / KANBAN ==========
+function verificarTutorialProgreso() {
+  if (!localStorage.getItem('linajes-tutorial-progreso')) {
+    document.getElementById('modal-tutorial-progreso').classList.add('visible');
+  }
+}
+function cerrarTutorialProgreso() {
+  localStorage.setItem('linajes-tutorial-progreso', '1');
+  cerrarModales();
+}
+function sincronizarProgProyecto() {
+  document.getElementById('prog-select-proyecto').value = proyectoActual || '';
+  renderKanban();
+}
+function progCambiarProyecto() {
+  proyectoActual = document.getElementById('prog-select-proyecto').value || null;
+  syncProyectoDropdowns();
+  renderKanban();
+}
+function progCrearTarea() {
+  if (!proyectoActual) { mostrarToast('Primero seleccioná un proyecto.'); return; }
+  const titulo = document.getElementById('prog-titulo').value.trim();
+  if (!titulo) { mostrarToast('El título es obligatorio.'); return; }
+  if (!proyectos[proyectoActual].tareas) proyectos[proyectoActual].tareas = [];
+  proyectos[proyectoActual].tareas.push({
+    id: Date.now(),
+    titulo,
+    descripcion: document.getElementById('prog-desc').value.trim(),
+    fechaLimite: document.getElementById('prog-fecha').value || '',
+    estado: 'todo',
+    orden: Date.now(),
+  });
+  guardarEnStorage();
+  document.getElementById('prog-titulo').value = '';
+  document.getElementById('prog-desc').value = '';
+  document.getElementById('prog-fecha').value = '';
+  renderKanban();
+  mostrarToast('Tarea creada.');
+}
+function esTareaAtrasada(t) {
+  if (!t.fechaLimite || t.estado === 'done') return false;
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const lim = new Date(t.fechaLimite + 'T00:00:00');
+  return lim < hoy;
+}
+function renderKanban() {
+  ['todo','progress','done'].forEach(est => {
+    document.getElementById('kanban-'+est).innerHTML = '';
+  });
+  if (!proyectoActual) return;
+  const tareas = (proyectos[proyectoActual].tareas || []).sort((a,b) => (a.orden||0)-(b.orden||0));
+  tareas.forEach(t => {
+    const col = document.getElementById('kanban-' + t.estado);
+    if (!col) return;
+    const atrasado = esTareaAtrasada(t);
+    const card = document.createElement('div');
+    card.className = 'kanban-card' + (atrasado ? ' atrasado' : '');
+    card.draggable = true;
+    card.dataset.id = t.id;
+    card.innerHTML = `
+      <div class="kanban-card-titulo">${esc(t.titulo)}</div>
+      ${t.descripcion ? htmlTextoExpandible(t.descripcion, 'kt'+t.id) : ''}
+      ${t.fechaLimite ? `<div class="kanban-card-fecha">📅 ${t.fechaLimite}</div>` : ''}
+      ${atrasado ? '<span class="kanban-tag-atrasado">Atrasado</span>' : ''}
+      <div class="kanban-card-btns">
+        <button class="tl-btn-mini" onclick="event.stopPropagation();progEditar(${t.id})">✏</button>
+        <button class="tl-btn-mini del" onclick="event.stopPropagation();progEliminarDirecto(${t.id})">✕</button>
+      </div>`;
+    card.addEventListener('dragstart', e => { kanbanDragId = t.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); kanbanDragId = null; });
+    col.appendChild(card);
+  });
+}
+function kanbanDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function kanbanDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function kanbanDrop(e, estado) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if (!kanbanDragId || !proyectoActual) return;
+  const t = proyectos[proyectoActual].tareas.find(x => x.id === kanbanDragId);
+  if (t) { t.estado = estado; guardarEnStorage(); renderKanban(); }
+}
+function progEditar(id) {
+  tareaSeleccionada = id;
+  const t = proyectos[proyectoActual]?.tareas?.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('prog-edit-titulo').value = t.titulo;
+  document.getElementById('prog-edit-desc').value = t.descripcion || '';
+  document.getElementById('prog-edit-fecha').value = t.fechaLimite || '';
+  document.getElementById('modal-prog-editar').classList.add('visible');
+}
+function progGuardarEdicion() {
+  const t = proyectos[proyectoActual]?.tareas?.find(x => x.id === tareaSeleccionada);
+  if (!t) return;
+  t.titulo = document.getElementById('prog-edit-titulo').value.trim();
+  t.descripcion = document.getElementById('prog-edit-desc').value.trim();
+  t.fechaLimite = document.getElementById('prog-edit-fecha').value || '';
+  guardarEnStorage(); renderKanban(); cerrarModales();
+  mostrarToast('Tarea actualizada.');
+}
+function progEliminarTarea() {
+  if (!tareaSeleccionada) return;
+  proyectos[proyectoActual].tareas = proyectos[proyectoActual].tareas.filter(t => t.id !== tareaSeleccionada);
+  guardarEnStorage(); renderKanban(); cerrarModales();
+  mostrarToast('Tarea eliminada.');
+}
+function progEliminarDirecto(id) {
+  tareaSeleccionada = id;
+  if (!confirm('¿Eliminar esta tarea?')) return;
+  progEliminarTarea();
+}
+
+// ========== MODALES ==========
+function cerrarModales() {
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('visible'));
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) cerrarModales(); });
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape') cerrarModales(); });
+document.getElementById('modal-nombre-proyecto').addEventListener('keydown', e => {
+  if(e.key==='Enter') confirmarCrearProyecto();
+});
+
+// ========== TOAST ==========
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 3200);
+}
+
+// ========== INIT ==========
+function iniciarApp() {
+  cargarEtiquetasEnForm('etiquetas-personaje', []);
+  cargarEtiquetasEnForm('etiquetas-tl', []);
+  cargarEtiquetasEnForm('etiquetas-cuad', []);
+  renderArbol();
+}
+if (FIREBASE_ACTIVO) {
+  initFirebase();
+} else {
+  cargarDeStorage();
+  iniciarApp();
+}
+</script>
+</body>
+</html>
