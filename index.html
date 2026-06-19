@@ -803,16 +803,22 @@ input[type="date"] {
 }
 .btn-google:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
 .user-bar {
-  display: none; justify-content: center; align-items: center; gap: 12px;
-  font-size: 0.75rem; color: rgba(201,169,110,0.55); margin-bottom: 6px;
+  display: none; position: absolute; top: 10px; right: 16px;
+  align-items: center; gap: 10px; z-index: 20;
+  font-size: 0.78rem; color: rgba(201,169,110,0.65);
 }
 .user-bar.visible { display: flex; }
+#user-email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-logout {
-  background: none; border: 1px solid rgba(201,169,110,0.25); color: rgba(201,169,110,0.6);
-  padding: 2px 10px; border-radius: 3px; cursor: pointer; font-size: 0.72rem;
-  font-family: 'IM Fell English', serif;
+  background: rgba(92,27,27,0.4); border: 1px solid rgba(201,169,110,0.45);
+  color: var(--pergamino-claro); padding: 5px 14px; border-radius: 4px;
+  cursor: pointer; font-size: 0.78rem; font-family: 'IM Fell English', serif;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
-.btn-logout:hover { color: var(--pergamino); border-color: rgba(201,169,110,0.5); }
+.btn-logout:hover {
+  background: rgba(92,27,27,0.65); color: var(--pergamino);
+  border-color: var(--pergamino);
+}
 .app.bloqueada { filter: blur(4px); pointer-events: none; user-select: none; }
 
 .ornamento { text-align: center; color: rgba(201,169,110,0.3); font-size: 0.78rem; letter-spacing: 0.3em; margin: 2px 0; }
@@ -1412,11 +1418,32 @@ const FIREBASE_ACTIVO = FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.starts
 
 let firebaseUser = null;
 let db = null;
+let appIniciada = false;
 
-function initFirebase() {
+function mensajeErrorAuth(e) {
+  const msgs = {
+    'auth/unauthorized-domain': 'Dominio no autorizado. En Firebase → Authentication → Settings → Authorized domains, agregá: yanitomas.github.io',
+    'auth/popup-blocked': 'El navegador bloqueó la ventana emergente.',
+    'auth/popup-closed-by-user': '',
+    'auth/operation-not-allowed': 'Google no está activado. En Firebase → Authentication → Sign-in method → activá Google.',
+    'auth/cancelled-popup-request': '',
+  };
+  return msgs[e.code] || `Error de login: ${e.code || e.message}`;
+}
+
+async function initFirebase() {
   if (!FIREBASE_ACTIVO || typeof firebase === 'undefined') return;
   firebase.initializeApp(FIREBASE_CONFIG);
   db = firebase.firestore();
+
+  try {
+    const result = await firebase.auth().getRedirectResult();
+    if (result.user) mostrarToast('Sesión iniciada correctamente.');
+  } catch(e) {
+    const msg = mensajeErrorAuth(e);
+    if (msg) mostrarToast(msg);
+  }
+
   firebase.auth().onAuthStateChanged(async (user) => {
     firebaseUser = user;
     if (user) {
@@ -1425,8 +1452,9 @@ function initFirebase() {
       document.getElementById('user-bar').classList.add('visible');
       document.getElementById('user-email').textContent = user.email || user.displayName || 'Usuario';
       await cargarDeNube();
-      iniciarApp();
+      if (!appIniciada) { iniciarApp(); appIniciada = true; }
     } else {
+      appIniciada = false;
       document.getElementById('login-pantalla').classList.add('visible');
       document.getElementById('app-main').classList.add('bloqueada');
       document.getElementById('user-bar').classList.remove('visible');
@@ -1436,16 +1464,35 @@ function initFirebase() {
 async function loginConGoogle() {
   if (!FIREBASE_ACTIVO) { mostrarToast('Firebase no está configurado todavía.'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await firebase.auth().signInWithPopup(provider);
+    await firebase.auth().signInWithRedirect(provider);
   } catch(e) {
-    if (e.code !== 'auth/popup-closed-by-user') mostrarToast('Error al iniciar sesión.');
+    try {
+      await firebase.auth().signInWithPopup(provider);
+    } catch(e2) {
+      const msg = mensajeErrorAuth(e2);
+      if (msg) mostrarToast(msg);
+    }
   }
 }
 async function cerrarSesion() {
   if (firebaseUser) await firebase.auth().signOut();
   proyectos = {}; proyectoActual = null;
   actualizarDropdowns(); renderArbol();
+  mostrarToast('Sesión cerrada.');
+}
+function sanitizarParaFirestore(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+function mensajeErrorFirestore(e, accion) {
+  const msgs = {
+    'permission-denied': 'Sin permiso en Firestore. En Firebase → Firestore → Reglas, publicá las reglas de usuarios.',
+    'unavailable': 'Firestore no disponible. En Firebase → Firestore Database, creá la base de datos.',
+    'not-found': 'Firestore no encontrado. Creá la base de datos en Firebase Console.',
+  };
+  console.error(`Firestore ${accion}:`, e);
+  return msgs[e.code] || `Error al ${accion} en la nube (${e.code || e.message}).`;
 }
 async function cargarDeNube() {
   if (!firebaseUser || !db) return;
@@ -1455,21 +1502,29 @@ async function cargarDeNube() {
       proyectos = snap.data().proyectos;
     } else {
       const local = localStorage.getItem('linajes-v2');
-      if (local) {
-        proyectos = JSON.parse(local);
-        await guardarEnNube();
-        mostrarToast('Tus proyectos locales se migraron a la nube.');
-      }
+      if (local) proyectos = JSON.parse(local);
     }
     Object.keys(proyectos).forEach(k => migrarProyecto(proyectos[k]));
+    if (!snap.exists || !snap.data().proyectos) {
+      const local = localStorage.getItem('linajes-v2');
+      if (local && Object.keys(proyectos).length) {
+        const ok = await guardarEnNube();
+        if (ok) mostrarToast('Tus proyectos locales se migraron a la nube.');
+      }
+    }
     actualizarDropdowns();
-  } catch(e) { mostrarToast('Error al cargar datos de la nube.'); }
+  } catch(e) { mostrarToast(mensajeErrorFirestore(e, 'cargar')); }
 }
 async function guardarEnNube() {
-  if (!firebaseUser || !db) return;
+  if (!firebaseUser || !db) return false;
   try {
-    await db.collection('usuarios').doc(firebaseUser.uid).set({ proyectos, updatedAt: Date.now() });
-  } catch(e) { mostrarToast('Error al guardar en la nube.'); }
+    const datos = sanitizarParaFirestore({ proyectos, updatedAt: Date.now() });
+    await db.collection('usuarios').doc(firebaseUser.uid).set(datos);
+    return true;
+  } catch(e) {
+    mostrarToast(mensajeErrorFirestore(e, 'guardar'));
+    return false;
+  }
 }
 
 // ========== CONSTANTES ==========
