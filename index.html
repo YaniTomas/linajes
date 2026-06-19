@@ -1445,7 +1445,10 @@ async function initFirebase() {
   }
 
   firebase.auth().onAuthStateChanged(async (user) => {
-    firebaseUser = user;
+
+  console.log('AUTH STATE:', user);
+
+  firebaseUser = user;
     if (user) {
       document.getElementById('login-pantalla').classList.remove('visible');
       document.getElementById('app-main').classList.remove('bloqueada');
@@ -1454,11 +1457,14 @@ async function initFirebase() {
       await cargarDeNube();
       // if (!appIniciada) { iniciarApp(); appIniciada = true; }
     } else {
-      appIniciada = false;
-      document.getElementById('login-pantalla').classList.add('visible');
-      document.getElementById('app-main').classList.add('bloqueada');
-      document.getElementById('user-bar').classList.remove('visible');
-    }
+
+  console.log('USUARIO NULL');
+
+  appIniciada = false;
+  document.getElementById('login-pantalla').classList.add('visible');
+  document.getElementById('app-main').classList.add('bloqueada');
+  document.getElementById('user-bar').classList.remove('visible');
+}
   });
 }
 async function loginConGoogle() {
@@ -1477,9 +1483,17 @@ async function loginConGoogle() {
   }
 }
 async function cerrarSesion() {
+
+  console.log('SE EJECUTÓ cerrarSesion');
+
   if (firebaseUser) await firebase.auth().signOut();
-  proyectos = {}; proyectoActual = null;
-  actualizarDropdowns(); renderArbol();
+
+  proyectos = {};
+  proyectoActual = null;
+
+  actualizarDropdowns();
+  renderArbol();
+
   mostrarToast('Sesión cerrada.');
 }
 function sanitizarParaFirestore(obj) {
@@ -2867,7 +2881,7 @@ function mostrarToast(msg) {
 }
 
 // ========== INIT ==========
-function iniciarApp() {
+) {
   cargarEtiquetasEnForm('etiquetas-personaje', []);
   cargarEtiquetasEnForm('etiquetas-tl', []);
   cargarEtiquetasEnForm('etiquetas-cuad', []);
@@ -2876,7 +2890,7 @@ function iniciarApp() {
 if (FIREBASE_ACTIVO) {
   initFirebase();
 } else {
-  cargarDeStorage();
+  cargarDeStorage();function iniciarApp(
   iniciarApp();
 }
 </script>
